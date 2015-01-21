@@ -4,12 +4,16 @@
 // Prompt for this shell.
 char* PROMPT = "$ %s ";
 
-// Default directory if cd command is used parameterless.
-const char* DEFAULT_DIRECTORY = "/";
+// Default path for the directory if cd command is used parameterless.
+const char* DEFAULT_DIRECTORY_PATH = "/";
 
-// Default directory if cd command is used parameterless.
-const char* RUN_COMMAND_LOCATION = "/export/LOG710/home/AJ50440/labo1/run";
+// Default run command path that will be used to execute commands.
+const char* RUN_COMMAND_PATH = "/export/LOG710/home/AJ50440/labo1/run";
 
+// Default run command path that will be used to execute commands.
+const char* TEMP_PATH = "/export/LOG710/home/AJ50440/labo1/temp";
+
+// Constant for a generic unknown execution error.
 const int UNKNOWN_ERROR_ERRNO = -1;
 
 // Constant for a successful execution.
@@ -36,8 +40,30 @@ const int STDOUT_ERROR_ERRNO = 6;
 // Default buffer size. If input exceeds, expect the program to return an error code.
 const int BUFF_SIZE = 1024;
 
+typedef struct bgtask bgtask;
+
+// Structu to define a background task.
+struct bgtask {
+    int id;
+    char* name;
+    pid_t pid;
+    int finished;
+};
+
 // Splits a command into argc and argv.
 void splitCommand(char *command, int* argc, char** argv);
 
 // Change current directory of the shell.
 int changeDirectory(const char* path);
+
+// List all background processes currently active.
+int listBackgroundTasks(bgtask* bgTasks, int count);
+
+// Simple method to be used asynchronously in a thread.
+void *switchFinishedFlag(void* task);
+
+// Utility method to print the bytes of a string.
+void printBytes(char* str);
+
+// Combine two paths together.
+char* combinePath(const char* left, const int leftLen, const char* right, const int rightLen);

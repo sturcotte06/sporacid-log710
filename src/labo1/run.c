@@ -38,7 +38,7 @@ void main (int argc, char *argv[]) {
         getrusage(RUSAGE_CHILDREN, &usage);
 		
 		// Display stats of execution.
-		printf("------------------------\n");
+		printf("+-----------------------\n");
 		printf("| pid: %d\n", (int) pid);
 		printf("| execution time: %lims\n", getMilliseconds(time2) - getMilliseconds(time1));
         printf("| cpu time: %lims\n", getMilliseconds(usage.ru_stime));
@@ -46,7 +46,7 @@ void main (int argc, char *argv[]) {
         printf("| voluntary interruption count: %li\n", usage.ru_nvcsw);
         printf("| soft page failure count: %li\n", usage.ru_minflt);
         printf("| hard page failure count: %li\n", usage.ru_majflt);
-		printf("------------------------\n");
+		printf("+-----------------------\n");
 	}
 	
 	// Success.
