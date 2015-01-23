@@ -20,6 +20,9 @@ bgtask *tasks;
 // Count of tasks buffer.
 int iTasks;
 
+// Background threads to wait upon at exit.
+pthread_t* threads;
+
 // Main method that will execute the shell.
 void main (void) {    
     // Make sure the run executable exists.
@@ -36,6 +39,7 @@ void main (void) {
     
     // Initialize background processes buffer.
     tasks = malloc(BUFF_SIZE * sizeof(bgtask));
+    threads = malloc(BUFF_SIZE * sizeof(pthread_t));
     iTasks = 0;
     
     // Loop until the user enters the "exit" command.
@@ -65,6 +69,13 @@ void main (void) {
         // Switch on command name.
         if (strcmp(argv[0], "exit") == 0) {
             // Exception case: exit command.
+            int iThread = 0;
+            for (iThread = 0; iThread < iTasks; iThread++) {
+                // Wait on all threads to end. This would mean
+                // all subprocesses that run background commands are done.
+                printf("Waiting on thread with tid %d\n", (int)threads[iThread]);
+                pthread_join(threads[iThread], NULL);
+            }
             break;
         } else if (strcmp(argv[0], "cd") == 0) {
             // Exception case: change directory command.
@@ -73,7 +84,7 @@ void main (void) {
         } else if (strcmp(argv[0], "aptaches") == 0) {
             // Exception case: list all background tasks.
             listBackgroundTasks(tasks, iTasks);
-        } else if (strcmp(argv[0], "otaches") == 0) {
+        } else if (strcmp(argv[0], "otache") == 0) {
             // Exception case: output to screen the stdout of given bgtask.
             if (argv[1] == NULL) {
                 printf("otaches requires a task id as argument.\n");
@@ -82,14 +93,6 @@ void main (void) {
                 if (id > 0 && id < iTasks + 1) {
                     bgtask* task = &tasks[id - 1];
                     printBackgroundTaskStdout(task);
-                    
-                    // // Cheap implementation: call cat on the stdout path of the bgtask.
-                    // argv[0] = calloc (4, sizeof(char));
-                    // argv[1] = calloc (strlen(task->stdout) + 1, sizeof(char));
-                    // strcpy(argv[0], "cat");
-                    // strcpy(argv[1], task->stdout);
-                    // 
-                    // runTask(5, execArgv);
                 } else {
                     printf("otaches requires an existing task id as argument.\n");
                 }
@@ -259,15 +262,17 @@ void runBackgroundTask(int argc, char** argv) {
     
     // Add the background task to the buffer.
     // Don't mind buffer overflow. I don't think this shell will live up to see that day.
-    tasks[iTasks++] = task;
+    tasks[iTasks] = task;
     
     // Create a thread to turn the finished flag on when process is done.    
     int id = task.id;
     pthread_t thread;
     pthread_create(&thread, NULL, switchFinishedFlag, (void*)(id));
+    threads[iTasks] = thread;
     
     // Show the task to the user.
     printBackgroundTask(&task);
+    iTasks++;
 }
 
 // List all background processes currently active.
