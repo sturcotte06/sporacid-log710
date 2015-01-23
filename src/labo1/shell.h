@@ -37,6 +37,9 @@ const int STDIN_ERROR_ERRNO = 5;
 // Constant for the error number if standard output write cannot occur.
 const int STDOUT_ERROR_ERRNO = 6;
 
+// Constant for the error number if some info is requested from an unfinished background task.
+const int BGTACK_UNFINISHED_ERRNO = 7;
+
 // Default buffer size. If input exceeds, expect the program to return an error code.
 const int BUFF_SIZE = 1024;
 
@@ -68,6 +71,9 @@ int listBackgroundTasks();
 
 // Prints a background task.
 void printBackgroundTask(bgtask* task);
+
+// Prints a background task's standard output.
+int printBackgroundTaskStdout(bgtask* task);
 
 // Simple method to be used asynchronously in a thread.
 void *switchFinishedFlag(void* task);

@@ -81,14 +81,15 @@ void main (void) {
                 int id = atoi(argv[1]);
                 if (id > 0 && id < iTasks + 1) {
                     bgtask* task = &tasks[id - 1];
+                    printBackgroundTaskStdout(task);
                     
-                    // Cheap implementation: call cat on the stdout path of the bgtask.
-                    argv[0] = calloc (4, sizeof(char));
-                    argv[1] = calloc (strlen(task->stdout) + 1, sizeof(char));
-                    strcpy(argv[0], "cat");
-                    strcpy(argv[1], task->stdout);
-                    
-                    runTask(5, execArgv);
+                    // // Cheap implementation: call cat on the stdout path of the bgtask.
+                    // argv[0] = calloc (4, sizeof(char));
+                    // argv[1] = calloc (strlen(task->stdout) + 1, sizeof(char));
+                    // strcpy(argv[0], "cat");
+                    // strcpy(argv[1], task->stdout);
+                    // 
+                    // runTask(5, execArgv);
                 } else {
                     printf("otaches requires an existing task id as argument.\n");
                 }
@@ -288,6 +289,39 @@ void printBackgroundTask(bgtask* task) {
         (task->finished ? "finished" : "running"),
         task->stdout);
     pthread_mutex_unlock(&(task->mutex));
+}
+
+// Prints a background task's standard output.
+int printBackgroundTaskStdout(bgtask* task) {
+    int finished;
+    
+    // Fetch finished flag. Don't even try to print the output
+    // of an unfinished task.
+    pthread_mutex_lock(&(task->mutex));
+    finished = task->finished;
+    pthread_mutex_unlock(&(task->mutex));
+    
+    if (!finished) {
+        printf("Cannot print stdout of unfinished task %d. Wait for the task to be finished.\n", task->id);
+        return BGTACK_UNFINISHED_ERRNO;
+    }
+    
+    FILE* file;
+    size_t count;
+    char* stdout = task->stdout;
+    char* readBuffer = malloc(BUFF_SIZE * sizeof(char));
+    file = fopen(stdout, "r");
+    
+    if (!file) {
+        printf("Cannot read stdout of task %d.\n", task->id);
+        return STDOUT_ERROR_ERRNO;
+    }
+    
+    while ((count = fread(readBuffer, 1, BUFF_SIZE, file)) > 0) {
+        printf("%s", readBuffer);
+    }
+    
+    fclose(file);
 }
 
 // Simple method to be used asynchronously in a thread.
