@@ -45,9 +45,10 @@ typedef struct bgtask bgtask;
 struct bgtask {
     int id;
     char* name;
+    char* stdout;
     pid_t pid;
     int finished;
-    pthread_mutex_t* mutex;
+    pthread_mutex_t mutex;
 };
 
 // Splits a command into argc and argv.
@@ -66,7 +67,7 @@ void runBackgroundTask(int argc, char** argv);
 int listBackgroundTasks();
 
 // Prints a background task.
-void printBackgroundTask(bgtask task);
+void printBackgroundTask(bgtask* task);
 
 // Simple method to be used asynchronously in a thread.
 void *switchFinishedFlag(void* task);
