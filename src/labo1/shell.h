@@ -40,14 +40,14 @@ const int STDOUT_ERROR_ERRNO = 6;
 // Default buffer size. If input exceeds, expect the program to return an error code.
 const int BUFF_SIZE = 1024;
 
+// Structure to define a background task.
 typedef struct bgtask bgtask;
-
-// Structu to define a background task.
 struct bgtask {
     int id;
     char* name;
     pid_t pid;
     int finished;
+    pthread_mutex_t* mutex;
 };
 
 // Splits a command into argc and argv.
@@ -56,8 +56,17 @@ void splitCommand(char *command, int* argc, char** argv);
 // Change current directory of the shell.
 int changeDirectory(const char* path);
 
+// Runs a task synchronously.
+void runTask(int argc, char** argv);
+
+// Runs a task asynchronously.
+void runBackgroundTask(int argc, char** argv);
+
 // List all background processes currently active.
-int listBackgroundTasks(bgtask* bgTasks, int count);
+int listBackgroundTasks();
+
+// Prints a background task.
+void printBackgroundTask(bgtask task);
 
 // Simple method to be used asynchronously in a thread.
 void *switchFinishedFlag(void* task);
