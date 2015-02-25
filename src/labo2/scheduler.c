@@ -20,7 +20,7 @@ process_t* processes;
 // The number of processes.
 int proccnt;
 
-// 1: lire fichier list process
+// 1: lire fichier list process (done)
 // 2: process temps réel
 // 3: process usager
 // 4: ressources
@@ -47,7 +47,7 @@ int init_scheduler(char* procfile) {
     init_resources();
 	init_processes(procfile);
     
-    printf("Scheduler Initialized.\n");
+    printf("Scheduler initialized.\n");
     return SUCCESSFUL_EXEC;
 }
 
