@@ -7,6 +7,7 @@
 #include <time.h>
 #include <semaphore.h>
 #include "scheduler.h"
+#include <stdarg.h>
 
 // Buffer for all resources.
 resource_t* resources;
@@ -43,17 +44,17 @@ void main(int argc, char* argv[]) {
 // Initialize the scheduler data.
 // After this function call, the scheduler has to be ready to be ran.
 int init_scheduler(char* procfile) {
-    printf("Initializing scheduler...\n");
+    logf(INFO_LVL, "Initializing scheduler...");
     init_resources();
 	init_processes(procfile);
     
-    printf("Scheduler initialized.\n");
+    logf(INFO_LVL, "Scheduler initialized.");
     return SUCCESSFUL_EXEC;
 }
 
 // Initialize the list of processes to schedule.
 int init_processes(char* procfile) {
-    printf("Initializing processes of scheduler...\n");
+    logf(INFO_LVL, "Initializing processes of scheduler...");
 
     // Allocate memory for processes.
     processes = malloc(BUFF_SIZE * sizeof(process_t));
@@ -65,7 +66,7 @@ int init_processes(char* procfile) {
     ssize_t read;
     
     // Open the file in read mode.
-    printf("Opening process list file %s...\n", procfile);
+    logf(INFO_LVL, "Opening process list file %s...", procfile);
     if ((file = fopen(procfile, "r")) == NULL) {
         return FILE_UNEXISTING_ERRNO;
     }
@@ -78,21 +79,21 @@ int init_processes(char* procfile) {
         // Parse the line into a process struct.
         int result = parse_process(line, &processes[proccnt]);
         if (result == INVALID_PROCESS_SERIALIZATION_ERRNO) {
-            printf("Process could not be deserialized. The process will not be run.\n");
+            logf(ERROR_LVL, "Process could not be deserialized. The process will not be run.");
         } else if (result == POSSIBLE_DEADLOCK_PROCESS_ERRNO) {
-            printf("Process definition could lead to a deadlock. The process will not be run.\n");
+            logf(ERROR_LVL, "Process definition could lead to a deadlock. The process will not be run.");
         } else {
             proccnt++;        
         }
     }
     
-    printf("Processes of scheduler initialized.\n");
+    logf(INFO_LVL, "Processes of scheduler initialized.");
     return SUCCESSFUL_EXEC;
 }
 
 // Parse a single process string representation.
 int parse_process(char* unparsedproc, process_t* proc) {
-    printf("Parsing serialized process [%s]...\n", unparsedproc);
+    logf(INFO_LVL, "Parsing serialized process [%s]...", unparsedproc);
         
     // Keep the size of a process struct, in integers, so we never
     // get segfaults.
@@ -128,13 +129,13 @@ int parse_process(char* unparsedproc, process_t* proc) {
     if (proc->cd_cnt > CD_CNT) 
         return POSSIBLE_DEADLOCK_PROCESS_ERRNO;
     
-    printf("Serialized process parsed. Its priority is %d.\n", (int) proc->priority);
+    logf(INFO_LVL, "Serialized process parsed. Its priority is %d.", (int) proc->priority);
     return SUCCESSFUL_EXEC;
 }
 
 // Initialize available resources for this scheduler.
 int init_resources() {
-    printf("Initializing resources of scheduler...\n");
+    logf(INFO_LVL, "Initializing resources of scheduler...");
     
     // Allocate memory for resources.
     resources = malloc(4 * sizeof(resource_t));
@@ -142,25 +143,43 @@ int init_resources() {
     
     // Hardcode resources, because pdf says so.
     // Printers.
-    printf("Initializing printer resources...\n");
+    logf(INFO_LVL, "Initializing printer resources...");
     resources[0].type = printer;
     sem_init(&resources[0].semaphore, 0, PRINTER_CNT);
     
     // Scanners.
-    printf("Initializing scanner resources...\n");
+    logf(INFO_LVL, "Initializing scanner resources...");
     resources[1].type = scanner;
     sem_init(&resources[1].semaphore, 0, SCANNER_CNT);
     
     // Modems.
-    printf("Initializing modem resources...\n");
+    logf(INFO_LVL, "Initializing modem resources...");
     resources[2].type = modem;
     sem_init(&resources[2].semaphore, 0, MODEM_CNT);
     
     // Cds.
-    printf("Initializing cd resources...\n");
+    logf(INFO_LVL, "Initializing cd resources...");
     resources[3].type = cd;
     sem_init(&resources[3].semaphore, 0, CD_CNT);
     
-    printf("Resources of scheduler initialized.\n");
+    logf(INFO_LVL, "Resources of scheduler initialized.");
     return SUCCESSFUL_EXEC;
+}
+
+// Logs an event to standard output.
+void logf(const char* level, const char* format, ...) {
+    // Preformat the current timestamp.
+    time_t now = time(NULL);
+    char* nowstr = ctime(&now);
+    nowstr[strlen(nowstr) - 1] = '\0';
+        
+    // Preformat the message.
+    va_list args;
+    va_start(args, format);
+            
+    // Print the final log message.
+    printf(" [%s] [%s] ", level, /*pthread_self(), */nowstr);
+    vfprintf(stdout, format, args);
+    printf("\n");
+    va_end(args);
 }

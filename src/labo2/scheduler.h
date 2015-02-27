@@ -25,6 +25,12 @@ const int SCANNER_CNT = 1;
 const int MODEM_CNT = 1;
 const int CD_CNT = 2;
 
+// Constants for logging.
+const char* ERROR_LVL = "Error";
+const char* WARN_LVL = "Warning";
+const char* INFO_LVL = "Info";
+const char* DEBUG_LVL = "Debug";
+
 // Enumeration of all priorities for a process.
 typedef enum priority_t priority_t;
 enum priority_t {
@@ -76,3 +82,6 @@ int parse_process(char* unparsedproc, process_t* proc);
 
 // Initialize available resources for this scheduler.
 int init_resources();
+
+// Logs an event to standard output.
+void logf(const char* level, const char* format, ...);
