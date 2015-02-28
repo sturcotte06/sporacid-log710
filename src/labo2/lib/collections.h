@@ -1,3 +1,5 @@
+// Useless define. Only there to clearly specify that collections from this header file
+// must not be used on multiple threads.
 #define IS_THREAD_SAFE 0
 
 // Constant for a successful execution.
@@ -38,35 +40,74 @@ struct queue_t {
 	linkedlist_t* llist;
 };
 
-// Unit tests for the linked list.
-void linkedlist_utest();
-
-// Unit tests for the queue.
-void queue_utest();
-
-// Initializes an empty queue.
+/// <summary>
+/// Initializes an linked list.
+/// </summary>
+/// <param name="linkedlist">The linked list to initialize. This cannot be null.</param>
+/// <returns>Value of SUCCESSFUL_EXEC if successful.</returns>
 int linkedlist_init(linkedlist_t* linkedlist);
 
-// Adds an element to a linked list at the specified index.
+/// <summary>
+/// Adds an element to a linked list at the specified index.
+/// </summary>
+/// <param name="linkedlist">The linked list in which to add. This cannot be null.</param>
+/// <param name="index">The index at which to add the element. This cannot exceed the length of the linked list.</param>
+/// <param name="element">The element to add.</param>
+/// <returns>Value of SUCCESSFUL_EXEC if successful.</returns>
 int linkedlist_add(linkedlist_t* linkedlist, unsigned int index, void* element);
 
-// Removes an element from a linked list.
+/// <summary>
+/// Removes the element at the specified index from a linked list.
+/// </summary>
+/// <param name="linkedlist">The linked list in which to remove. This cannot be null.</param>
+/// <param name="index">The index at which to remove the element. This cannot exceed the length of the linked list.</param>
+/// <returns>Value of SUCCESSFUL_EXEC if successful.</returns>
 int linkedlist_remove(linkedlist_t* linkedlist, unsigned int index);
 
-// Gets an element from a linked list.
+/// <summary>
+/// Gets an element from a linked list.
+/// </summary>
+/// <param name="linkedlist">The linked list in which to get. This cannot be null.</param>
+/// <param name="index">The index at which to get the element. This cannot exceed the length of the linked list.</param>
+/// <param name="element">The out parameter for the element. This should (not checked) be null when called.</param>
+/// <returns>Value of SUCCESSFUL_EXEC if successful.</returns>
 int linkedlist_get(linkedlist_t* linkedlist, unsigned int index, void** element);
 
-// Destroys a linked list and all used memory. The head node will *not* be destroyed however.
+/// <summary>
+/// Destroys a linked list and all used memory. The linked list structure does not belong to this module;
+/// The callee should deal with the structure memory itself.
+/// </summary>
+/// <param name="linkedlist">The linked list to destroy. This cannot be null.</param>
+/// <returns>Value of SUCCESSFUL_EXEC if successful.</returns>
 int linkedlist_destroy(linkedlist_t* linkedlist);
 
-// Initializes an empty queue.
+/// <summary>
+/// Initializes a queue.
+/// </summary>
+/// <param name="queue">The queue to initialize. This cannot be null.</param>
+/// <returns>Value of SUCCESSFUL_EXEC if successful.</returns>
 int queue_init(queue_t* queue);
 
-// Dequeues an element from the queue.
-int queue_dequeue(queue_t* queue, void** element);
-
-// Enqueues an element in the queue.
+/// <summary>
+/// Enqueues an element in the queue.
+/// </summary>
+/// <param name="queue">The queue to initialize. This cannot be null.</param>
+/// <param name="element">The element to enqueue.</param>
+/// <returns>Value of SUCCESSFUL_EXEC if successful.</returns>
 int queue_enqueue(queue_t* queue, void* element);
 
-// Destroys a queue and all used memory.
+/// <summary>
+/// Dequeues an element from the queue.
+/// </summary>
+/// <param name="queue">The queue to initialize. This cannot be null.</param>
+/// <param name="element">The out parameter for the element. This should (not checked) be null when called.</param>
+/// <returns>Value of SUCCESSFUL_EXEC if successful.</returns>
+int queue_dequeue(queue_t* queue, void** element);
+
+/// <summary>
+/// Destroys a queue and all used memory. The queue structure does not belong to this module;
+/// the callee has to deal with the structure memory itself.
+/// </summary>
+/// <param name="queue">The queue to destroy. This cannot be null.</param>
+/// <returns>Value of SUCCESSFUL_EXEC if successful.</returns>
 int queue_destroy(queue_t* queue);

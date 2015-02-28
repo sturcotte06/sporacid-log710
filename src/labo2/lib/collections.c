@@ -3,87 +3,6 @@
 #include "logging.h"
 #include "collections.h"
 
-// To compile:
-//  1- gcc -Wall -c lib/collections.c
-//  2- ar rvs collections.a collections.o
-
-// Unit tests for the linked list.
-void linkedlist_utest() {
-    const int testsz = 10;
-    linkedlist_t linkedlist;
-    if(linkedlist_init(&linkedlist) != SUCCESSFUL_EXEC) {
-        logft(ERROR_LVL, "[Unit test] Initialization of linked list returned wrong value.");
-    }
-    
-    int i;
-    node_t *cnode;
-    
-    logft(DEBUG_LVL, "[Unit test] Beginning add all...");
-    for (i = 0; i < testsz; i++) {
-        char* buff = malloc(256 * sizeof(char));
-        sprintf(buff, "Element #%d", i + 1);
-    
-        if (linkedlist_add(&linkedlist, i, buff) != SUCCESSFUL_EXEC) {
-            logft(ERROR_LVL, "[Unit test] Add of linked list element returned wrong value.");
-        }
-    }
-    logft(DEBUG_LVL, "[Unit test] Add all succeeded...");
-    
-    logft(DEBUG_LVL, "[Unit test] Printing list of elements after add all.");
-    cnode = linkedlist.head;
-    while (cnode != NULL) {
-        logft(DEBUG_LVL, "%s", (char*) cnode->element);
-        cnode = cnode->next;
-    }
-    
-    logft(DEBUG_LVL, "[Unit test] Printing list of elements after add all (reverse).");
-    cnode = linkedlist.tail;
-    while (cnode != NULL) {
-        logft(DEBUG_LVL, "%s", (char*) cnode->element);
-        cnode = cnode->previous;
-    } 
-    
-    logft(DEBUG_LVL, "[Unit test] Beginning get all...");
-    for (i = 0; i < testsz; i++) {
-        void* element = NULL;
-        if (linkedlist_get(&linkedlist, i, &element) != SUCCESSFUL_EXEC) {
-            logft(ERROR_LVL, "[Unit test] Get of linked list element returned wrong value.");
-        }
-        
-        logft(DEBUG_LVL, "%s", (char*) element);
-    }
-    logft(DEBUG_LVL, "[Unit test] Get all succeeded...");
-        
-    logft(DEBUG_LVL, "[Unit test] Removing element #5.");
-    if(linkedlist_remove(&linkedlist, 4) != SUCCESSFUL_EXEC) {
-        logft(ERROR_LVL, "[Unit test] Removal of linked list element returned wrong value.");
-    }
-    
-    logft(DEBUG_LVL, "[Unit test] Printing list of elements after single remove.");
-    cnode = linkedlist.head;
-    while (cnode != NULL) {
-        logft(DEBUG_LVL, "%s", (char*) cnode->element);
-        cnode = cnode->next;
-    }
-    
-    logft(DEBUG_LVL, "[Unit test] Beginning remove all...");
-    for (i = 0; i < testsz - 1; i++) {
-        if (linkedlist_remove(&linkedlist, 0) != SUCCESSFUL_EXEC) {
-            logft(ERROR_LVL, "[Unit test] Get of linked list element returned wrong value.");
-        }
-    }
-    logft(DEBUG_LVL, "[Unit test] Remove all succeeded...");
-    
-    if(linkedlist_destroy(&linkedlist) != SUCCESSFUL_EXEC) {
-        logft(ERROR_LVL, "[Unit test] Destroy of linked list returned wrong value.");
-    }
-}
-
-// Unit tests for the queue.
-void queue_utest() {
-    
-}
-
 /// <summary>
 /// Initializes an linked list.
 /// </summary>
@@ -340,6 +259,28 @@ int queue_init(queue_t* queue) {
 }
 
 /// <summary>
+/// Enqueues an element in the queue.
+/// </summary>
+/// <param name="queue">The queue to initialize. This cannot be null.</param>
+/// <param name="element">The element to enqueue.</param>
+/// <returns>Value of SUCCESSFUL_EXEC if successful.</returns>
+int queue_enqueue(queue_t* queue, void* element) {    
+    logft(DEBUG_LVL, "Entering queue_enqueue().");
+    if (queue == NULL) {
+        // Queue cannot be null.
+        return NULL_QUEUE_ERRNO;
+    }
+    
+    int result;
+    if ((result = linkedlist_add(queue->llist, queue->llist->length - 1, element)) != SUCCESSFUL_EXEC) {
+        return result;
+    }
+    
+    logft(DEBUG_LVL, "Exiting queue_enqueue().");
+    return SUCCESSFUL_EXEC;
+}
+
+/// <summary>
 /// Dequeues an element from the queue.
 /// </summary>
 /// <param name="queue">The queue to initialize. This cannot be null.</param>
@@ -362,28 +303,6 @@ int queue_dequeue(queue_t* queue, void** element) {
     }
     
     logft(DEBUG_LVL, "Exiting queue_dequeue().");
-    return SUCCESSFUL_EXEC;
-}
-
-/// <summary>
-/// Enqueues an element in the queue.
-/// </summary>
-/// <param name="queue">The queue to initialize. This cannot be null.</param>
-/// <param name="element">The element to enqueue.</param>
-/// <returns>Value of SUCCESSFUL_EXEC if successful.</returns>
-int queue_enqueue(queue_t* queue, void* element) {    
-    logft(DEBUG_LVL, "Entering queue_enqueue().");
-    if (queue == NULL) {
-        // Queue cannot be null.
-        return NULL_QUEUE_ERRNO;
-    }
-    
-    int result;
-    if ((result = linkedlist_add(queue->llist, queue->llist->length - 1, element)) != SUCCESSFUL_EXEC) {
-        return result;
-    }
-    
-    logft(DEBUG_LVL, "Exiting queue_enqueue().");
     return SUCCESSFUL_EXEC;
 }
 
