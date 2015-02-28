@@ -2,34 +2,28 @@
 #define true 1
 
 // Constant for a successful execution.
-const int SUCCESSFUL_EXEC = 0;
+extern const int SUCCESSFUL_EXEC;
 
 // Constant for the error number for illegal arguments.
-const int ILLEGAL_ARGUMENTS_ERRNO = 1;
+extern const int ILLEGAL_ARGUMENTS_ERRNO;
 
 // Constant for the error number when a process' serialization is invalid.
-const int INVALID_PROCESS_SERIALIZATION_ERRNO = 40;
+extern const int INVALID_PROCESS_SERIALIZATION_ERRNO;
 
 // Constant for the error number when a process' definition might lead to a deadlock.
-const int POSSIBLE_DEADLOCK_PROCESS_ERRNO = 41;
+extern const int POSSIBLE_DEADLOCK_PROCESS_ERRNO;
 
 // Constant for the error number if a required file does not exist.
-const int FILE_UNEXISTING_ERRNO = 50;
+extern const int FILE_UNEXISTING_ERRNO;
 
 // Default buffer size. If input exceeds, expect the program to return an error code.
-const int BUFF_SIZE = 1024;
+extern const int BUFF_SIZE;
 
 // Constants for the available resources count.
-const int PRINTER_CNT = 2;
-const int SCANNER_CNT = 1;
-const int MODEM_CNT = 1;
-const int CD_CNT = 2;
-
-// Constants for logging.
-const char* ERROR_LVL = "Error";
-const char* WARN_LVL = "Warning";
-const char* INFO_LVL = "Info";
-const char* DEBUG_LVL = "Debug";
+extern const int PRINTER_CNT;
+extern const int SCANNER_CNT;
+extern const int MODEM_CNT;
+extern const int CD_CNT;
 
 // Enumeration of all priorities for a process.
 typedef enum priority_t priority_t;
@@ -41,14 +35,6 @@ enum priority_t {
 typedef enum resource_type_t resource_type_t;
 enum resource_type_t {
 	printer, scanner, modem, cd
-};
-
-// Structure for a linked list node. Every node points to the next node.
-// If the next node is NULL, then this node is the last.
-typedef struct node_t node_t;
-struct node_t {
-	void* element;
-	node_t* next;
 };
 
 // Structure for an I/O resource.
@@ -83,5 +69,5 @@ int parse_process(char* unparsedproc, process_t* proc);
 // Initialize available resources for this scheduler.
 int init_resources();
 
-// Logs an event to standard output.
-void logf(const char* level, const char* format, ...);
+// Starts the scheduler.
+int start_scheduler(process_t* processes, int proccnt, resource_t* resources, int rexcnt);

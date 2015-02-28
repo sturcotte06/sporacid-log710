@@ -1,0 +1,7 @@
+gcc -Wall -c lib/logging.c -o lib/logging.o
+ar rvs lib/logging.a lib/logging.o
+
+gcc -Wall -c lib/collections.c -o lib/collections.o
+ar rvs lib/collections.a lib/collections.o
+
+gcc -Wall -pthread scheduler.c lib/logging.a lib/collections.a -o scheduler
