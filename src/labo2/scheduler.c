@@ -67,8 +67,6 @@ int main(int argc, char* argv[]) {
 	if (argc != 2) {
 		exit(ILLEGAL_ARGUMENTS_ERRNO);
 	}
-	
-    linkedlist_utest();
     
 	// Get the only argument (The process list file name).
 	char* procfile = argv[1];

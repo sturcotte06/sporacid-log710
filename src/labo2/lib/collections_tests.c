@@ -2,8 +2,14 @@
 #include <stdlib.h>
 #include "logging.h"
 #include "collections.h"
+#include "collections_tests.h"
 
 const int TEST_SIZE = 10;
+const int SUCCESSFUL_EXEC = 0;
+const int EMPTY_QUEUE_ERRNO = 2;
+const int OUT_OF_BOUNDS_ERRNO = 3;
+const int NULL_LINKED_LIST_ERRNO = 4;
+const int NULL_QUEUE_ERRNO = 5;
 
 int main(void) {
     linkedlist_t linkedlist;
@@ -27,35 +33,37 @@ int main(void) {
     test_linkedlist_rprintlist(&linkedlist);
     
     test_linkedlist_destroy(&linkedlist);
+    exit(0);
 }
 
-void test_linkedlist_init(linkedlist_t* llist) {
-    if(linkedlist_init(&linkedlist) != SUCCESSFUL_EXEC) {
+void test_linkedlist_init(linkedlist_t* linkedlist) {
+    if(linkedlist_init(linkedlist) != SUCCESSFUL_EXEC) {
         logft(ERROR_LVL, "test_linkedlist_init(): Initialization of linked list returned wrong value.");
     }
 }
 
-void test_linkedlist_addall(linkedlist_t* llist) {
+void test_linkedlist_addall(linkedlist_t* linkedlist) {
     int i;
-    node_t *cnode;
     
     logft(DEBUG_LVL, "test_linkedlist_addall(): Beginning add all...");
     for (i = 0; i < TEST_SIZE; i++) {
         char* buff = malloc(256 * sizeof(char));
         sprintf(buff, "Element #%d", i + 1);
     
-        if (linkedlist_add(&linkedlist, i, buff) != SUCCESSFUL_EXEC) {
+        if (linkedlist_add(linkedlist, i, buff) != SUCCESSFUL_EXEC) {
             logft(ERROR_LVL, "test_linkedlist_addall(): Add of linked list element returned wrong value.");
         }
     }
     logft(DEBUG_LVL, "test_linkedlist_addall(): Add all succeeded.");
 }
 
-void test_linkedlist_getall(linkedlist_t* llist) {
+void test_linkedlist_getall(linkedlist_t* linkedlist) {
+    int i;
+    
     logft(DEBUG_LVL, "test_linkedlist_getall(): Beginning get all...");
-    for (i = 0; i < llist->length; i++) {
+    for (i = 0; i < linkedlist->length; i++) {
         void* element = NULL;
-        if (linkedlist_get(&linkedlist, i, &element) != SUCCESSFUL_EXEC) {
+        if (linkedlist_get(linkedlist, i, &element) != SUCCESSFUL_EXEC) {
             logft(ERROR_LVL, "test_linkedlist_getall():  Get of linked list element returned wrong value.");
         }
         
@@ -64,45 +72,47 @@ void test_linkedlist_getall(linkedlist_t* llist) {
     logft(DEBUG_LVL, "test_linkedlist_getall(): Get all succeeded.");
 }
 
-void test_linkedlist_removeone(linkedlist_t* llist, int index) {
-    logft(DEBUG_LVL, "test_linkedlist_removeone(): Beginning removal of one element #%d...", index);
-    if(linkedlist_remove(&linkedlist, index) != SUCCESSFUL_EXEC) {
-        logft(ERROR_LVL, "test_linkedlist_removeone(): Removal of linked list element #%d returned wrong value.", index);
+void test_linkedlist_removeone(linkedlist_t* linkedlist, int index) {
+    logft(DEBUG_LVL, "test_linkedlist_removeone(): Beginning removal of one element at index %d...", index);
+    if(linkedlist_remove(linkedlist, index) != SUCCESSFUL_EXEC) {
+        logft(ERROR_LVL, "test_linkedlist_removeone(): Removal of linked list element at index %d returned wrong value.", index);
     }
     
     logft(DEBUG_LVL, "test_linkedlist_removeone(): Remove one succeeded.");
 }
 
-void test_linkedlist_removeall(linkedlist_t* llist) {
+void test_linkedlist_removeall(linkedlist_t* linkedlist) {
+    int i;
+    
     logft(DEBUG_LVL, "test_linkedlist_removeall(): Beginning remove all...");
-    for (i = 0; i < llist->length;) {
-        if (linkedlist_remove(&linkedlist, 0) != SUCCESSFUL_EXEC) {
+    for (i = 0; i < linkedlist->length;) {
+        if (linkedlist_remove(linkedlist, 0) != SUCCESSFUL_EXEC) {
             logft(ERROR_LVL, "test_linkedlist_removeall(): Get of linked list element returned wrong value.");
         }
     }
     logft(DEBUG_LVL, "test_linkedlist_removeall(): Remove all succeeded...");
 }
 
-void test_linkedlist_destroy(linkedlist_t* llist) {
+void test_linkedlist_destroy(linkedlist_t* linkedlist) {    
     logft(DEBUG_LVL, "test_linkedlist_destroy(): Beginning destroy...");
-    if(linkedlist_destroy(&linkedlist) != SUCCESSFUL_EXEC) {
+    if(linkedlist_destroy(linkedlist) != SUCCESSFUL_EXEC) {
         logft(ERROR_LVL, "test_linkedlist_destroy(): Destroy of linked list returned wrong value.");
     }
     logft(DEBUG_LVL, "test_linkedlist_destroy(): Destroy succeeded...");
 }
 
-void test_linkedlist_printlist(linkedlist_t* llist) {
+void test_linkedlist_printlist(linkedlist_t* linkedlist) {
     logft(DEBUG_LVL, "test_linkedlist_printlist(): Printing list of elements.");
-    cnode = linkedlist.head;
+    node_t *cnode = linkedlist->head;
     while (cnode != NULL) {
         logft(DEBUG_LVL, "%s", (char*) cnode->element);
         cnode = cnode->next;
     }
 }
 
-void test_linkedlist_rprintlist(linkedlist_t* llist) {
+void test_linkedlist_rprintlist(linkedlist_t* linkedlist) {
     logft(DEBUG_LVL, "test_linkedlist_rprintlist(): Printing reverse list of elements.");
-    cnode = linkedlist.tail;
+    node_t *cnode = linkedlist->tail;
     while (cnode != NULL) {
         logft(DEBUG_LVL, "%s", (char*) cnode->element);
         cnode = cnode->previous;
