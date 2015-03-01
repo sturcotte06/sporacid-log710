@@ -8,9 +8,9 @@
 #include "collections.h"
 #include "collections_tests.h"
 
-int loglevel = TRACE_LVL;
+int loglevel = INFO_LVL;
 
-const int TEST_SIZE = 10;
+const int TEST_SIZE = 100;
 const int SUCCESSFUL_EXEC = 0;
 const int EMPTY_QUEUE_ERRNO = 2;
 const int OUT_OF_BOUNDS_ERRNO = 3;
