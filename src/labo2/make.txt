@@ -4,5 +4,8 @@ ar rvs lib/logging.a lib/logging.o
 gcc -Wall -c lib/collections.c -o lib/collections.o
 ar rvs lib/collections.a lib/collections.o
 
-gcc -Wall lib/collections_tests.c lib/collections.a lib/logging.a -o lib/collections_tests
+gcc -Wall -c lib/tests.c -o lib/tests.o
+ar rvs lib/tests.a lib/tests.o
+
+gcc -Wall lib/collections_tests.c lib/logging.a lib/tests.a lib/collections.a -o lib/collections_tests
 gcc -Wall -pthread scheduler.c lib/logging.a lib/collections.a -o scheduler

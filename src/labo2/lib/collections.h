@@ -14,7 +14,7 @@ extern const int OUT_OF_BOUNDS_ERRNO;
 // Constant for the error number when trying to modify a null linked list.
 extern const int NULL_LINKED_LIST_ERRNO;
 
-// Constant for the error number when trying to modify a null linked list.
+// Constant for the error number when trying to modify a null queue.
 extern const int NULL_QUEUE_ERRNO;
 
 // Structure for a double linked list node. Every node points to the previous and next node.

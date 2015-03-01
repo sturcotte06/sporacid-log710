@@ -34,7 +34,7 @@ int linkedlist_add(linkedlist_t* linkedlist, unsigned int index, void* element) 
         return NULL_LINKED_LIST_ERRNO;
     }
 
-    if (index > linkedlist->length) {
+    if (index > linkedlist->length + 1) {
         // Index must be within the bounds of the list.
         return OUT_OF_BOUNDS_ERRNO;
     }
@@ -58,8 +58,9 @@ int linkedlist_add(linkedlist_t* linkedlist, unsigned int index, void* element) 
         // Inserting into second half. Start from tail.
         // Find the node after which we need to insert.
         // Keep in mind we're iterating from tail to head.
+        index = linkedlist->length - index;
         pnode = linkedlist->tail;
-        for (i = index; i < linkedlist->length; i++) {
+        for (i = 0; i < index; i++) {
             // Keep trace of current and next nodes.
             nnode = pnode;
             pnode = pnode->previous;
@@ -272,7 +273,7 @@ int queue_enqueue(queue_t* queue, void* element) {
     }
     
     int result;
-    if ((result = linkedlist_add(queue->llist, queue->llist->length - 1, element)) != SUCCESSFUL_EXEC) {
+    if ((result = linkedlist_add(queue->llist, queue->llist->length, element)) != SUCCESSFUL_EXEC) {
         return result;
     }
     
@@ -293,12 +294,23 @@ int queue_dequeue(queue_t* queue, void** element) {
         return NULL_QUEUE_ERRNO;
     }
 
+    if (queue->llist->length == 0) {
+        // Special case. 
+        // Queue is empty, just set null into element and return.
+        *element = NULL;
+        return SUCCESSFUL_EXEC;
+    }
+    
     int result;
-    if ((result = linkedlist_get(queue->llist, queue->llist->length - 1, element)) != SUCCESSFUL_EXEC) {
+    // Get the first element in the linked list.
+    if ((result = linkedlist_get(queue->llist, 0, element)) != SUCCESSFUL_EXEC) {
+        *element = NULL;
         return result;
     }
     
-    if ((result = linkedlist_remove(queue->llist, queue->llist->length - 1)) != SUCCESSFUL_EXEC) {
+    // Remove the element from the linked list. The element is now considered consumed.
+    if ((result = linkedlist_remove(queue->llist, 0)) != SUCCESSFUL_EXEC) {
+        *element = NULL;
         return result;
     }
     
@@ -319,7 +331,7 @@ int queue_destroy(queue_t* queue) {
         return NULL_QUEUE_ERRNO;
     }
     
-    // Destroy the inner
+    // Destroy the inner list.
     linkedlist_destroy(queue->llist);
     queue->llist = NULL;
     

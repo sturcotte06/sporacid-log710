@@ -11,6 +11,9 @@
 #include "lib/collections.h"
 #include "scheduler.h"
 
+// Set the logging level to whatever we need for debugging purposes.
+int loglevel = INFO_LVL;
+
 // Constant for a successful execution.
 const int SUCCESSFUL_EXEC = 0;
 

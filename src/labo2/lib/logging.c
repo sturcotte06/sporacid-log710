@@ -5,13 +5,16 @@
 #include <time.h>
 #include "logging.h"
 
-const char* ERROR_LVL =     "Error";
-const char* WARN_LVL =      "Warning";
-const char* INFO_LVL =      "Info";
-const char* DEBUG_LVL =     "Debug";
+// Constants for logging levels associated strings.
+const char* LEVEL_STRINGS[LEVEL_COUNT] = { "Trace", "Debug", "Info", "Warning", "Error", "Fatal" };
 
 // Logs an event to standard output.
-void logft(const char* level, const char* format, ...) {
+void logft(const int level, const char* format, ...) {
+    if (level < loglevel) {
+        // This message does not need to be logged.
+        return;
+    }
+
     // Preformat the current timestamp.
     time_t now = time(NULL);
     char* nowstr = ctime(&now);
@@ -21,15 +24,29 @@ void logft(const char* level, const char* format, ...) {
     va_list args;
     va_start(args, format);
 
-    // Print the final log message.
-    printf(" [%s] [%s] ", level, /*pthread_self(), */nowstr);
-    vfprintf(stdout, format, args);
-    printf("\n");
+    // Print the header of the log.
+    printf(" [%s] [%s] ", 
+        lvltostr(level), 
+        /*pthread_self(), */
+        nowstr);
+
+    // Print the message.
+    vfprintf(stdout, format, args); printf("\n");
     va_end(args);
 }
 
 // Logs an event to a stream.
-void flogft(FILE* stream, const char* level, const char* format, ...) {
+void flogft(FILE* stream, const int level, const char* format, ...) {
+    if (level < loglevel) {
+        // This message does not need to be logged.
+        return;
+    }
+    
+    if (stream == NULL) {
+        // Assume stdout.
+        logft(level, format);
+    }
+
     // Preformat the current timestamp.
     time_t now = time(NULL);
     char* nowstr = ctime(&now);
@@ -39,9 +56,19 @@ void flogft(FILE* stream, const char* level, const char* format, ...) {
     va_list args;
     va_start(args, format);
 
-    // Print the final log message.
-    fprintf(stream, " [%s] [%s] ", level, /*pthread_self(), */nowstr);
-    vfprintf(stream, format, args);
-    fprintf(stream, "\n");
+    // Print the header of the log.
+    fprintf(stream, " [%s] [%s] ", 
+        lvltostr(level), 
+        /*pthread_self(), */
+        nowstr);
+        
+    // Print the message.
+    vfprintf(stream, format, args); fprintf(stream, "\n");
     va_end(args);
+}
+
+// Get the string representation of the logging level.
+const char* lvltostr(const int level) {
+    return LEVEL_STRINGS[
+        level > LEVEL_COUNT - 1 ? LEVEL_COUNT : level];
 }
