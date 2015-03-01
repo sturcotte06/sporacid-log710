@@ -27,7 +27,9 @@ int main(void) {
     test_linkedlist_addall(&results, &linkedlist);
     test_linkedlist_printlist(&linkedlist);
     test_linkedlist_rprintlist(&linkedlist);
-    test_linkedlist_getall(&results, &linkedlist);    
+    test_linkedlist_getall(&results, &linkedlist);
+    test_linkedlist_addone(&results, &linkedlist, 2);
+    test_linkedlist_addone(&results, &linkedlist, 8);
     test_linkedlist_removeone(&results, &linkedlist, 3);
     test_linkedlist_removeone(&results, &linkedlist, 7);
     test_linkedlist_removeall(&results, &linkedlist);
@@ -67,6 +69,29 @@ void test_linkedlist_addall(testresults_t* results, linkedlist_t* linkedlist) {
     tests_assert(results, 
         linkedlist->length == TEST_SIZE,
         "test_linkedlist_addall(): Discrepancy in linked list length.");
+}
+
+// @LinkedListTest
+void test_linkedlist_addone(testresults_t* results, linkedlist_t* linkedlist, int index) {
+    int length = linkedlist->length;
+    char element[BUFFER_SIZE];
+    sprintf(element, "Element %d (added)", index);
+    tests_assert(results, 
+        linkedlist_add(linkedlist, index, element) == SUCCESSFUL_EXEC,
+        "test_linkedlist_addone(): Add of linked list element at index %d returned wrong value.", index);
+
+    tests_assert(results, 
+        linkedlist->length == length + 1,
+        "test_linkedlist_addone(): Discrepancy in linked list length.", index);
+        
+    void* elemento;
+    tests_assert(results, 
+        linkedlist_get(linkedlist, index, &elemento) == SUCCESSFUL_EXEC,
+        "test_linkedlist_addone(): Get of linked list element at index %d returned wrong value.", index);
+    
+    tests_assert(results, 
+        strcmp((char*) elemento, element) == 0,
+        "test_linkedlist_addone(): Discrepancy in linked list element at index %d.", index);
 }
 
 // @LinkedListTest

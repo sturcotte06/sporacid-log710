@@ -1,6 +1,7 @@
 // Unit test methods for the linked list collection.
 void test_linkedlist_init(testresults_t* results, linkedlist_t* linkedlist);
 void test_linkedlist_addall(testresults_t* results, linkedlist_t* linkedlist);
+void test_linkedlist_addone(testresults_t* results, linkedlist_t* linkedlist, int index);
 void test_linkedlist_getall(testresults_t* results, linkedlist_t* linkedlist);
 void test_linkedlist_removeone(testresults_t* results, linkedlist_t* linkedlist, int index);
 void test_linkedlist_removeall(testresults_t* results, linkedlist_t* linkedlist);
