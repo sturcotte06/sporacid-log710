@@ -1,6 +1,3 @@
-#define false 0
-#define true 1
-
 // Constant for a successful execution.
 extern const int SUCCESSFUL_EXEC;
 
@@ -15,15 +12,6 @@ extern const int POSSIBLE_DEADLOCK_PROCESS_ERRNO;
 
 // Constant for the error number if a required file does not exist.
 extern const int FILE_UNEXISTING_ERRNO;
-
-// Default buffer size. If input exceeds, expect the program to return an error code.
-extern const int BUFF_SIZE;
-
-// Constants for the available resources count.
-extern const int PRINTER_CNT;
-extern const int SCANNER_CNT;
-extern const int MODEM_CNT;
-extern const int CD_CNT;
 
 // Enumeration of all priorities for a process.
 typedef enum priority_t priority_t;
@@ -41,10 +29,10 @@ enum resource_type_t {
 typedef struct resource_t resource_t;
 struct resource_t {
 	resource_type_t type;
-	sem_t semaphore;
+	sem_t* semaphore;
 };
 
-// Structure a process.
+// Structure for a process.
 typedef struct process_t process_t;
 struct process_t {
 	unsigned int finish_time;
@@ -58,16 +46,16 @@ struct process_t {
 
 // Initialize the scheduler data.
 // After this function call, the scheduler has to be ready to be ran.
-int init_scheduler(char* procfile);
+int init_scheduler(char* procfile, queue_t* process_queues[], resource_t* resources[]);
 
 // Initialize the list of processes to schedule.
-int init_processes(char* procfile);
+int init_processes(char* procfile, queue_t* process_queues[], resource_t* resources[]);
 
 // Parse a single process string representation.
 int parse_process(char* unparsedproc, process_t* proc);
 
 // Initialize available resources for this scheduler.
-int init_resources();
+int init_resources(resource_t* resources[]);
 
 // Starts the scheduler.
-int start_scheduler(process_t* processes, int proccnt, resource_t* resources, int rexcnt);
+int start_scheduler(queue_t* process_queues[], resource_t* resources[]);

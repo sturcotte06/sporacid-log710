@@ -28,7 +28,7 @@ int linkedlist_init(linkedlist_t* linkedlist) {
 /// <param name="element">The element to add.</param>
 /// <returns>Value of SUCCESSFUL_EXEC if successful.</returns>
 int linkedlist_add(linkedlist_t* linkedlist, unsigned int index, void* element) {
-    logft(DEBUG_LVL, "Entering linkedlist_add() at index %d.", index);    
+    log_debug("Entering linkedlist_add() at index %d.", index);    
     if (linkedlist == NULL) {
         // Linked list cannot be null.
         return NULL_LINKED_LIST_ERRNO;
@@ -87,7 +87,7 @@ int linkedlist_add(linkedlist_t* linkedlist, unsigned int index, void* element) 
     }
     
     linkedlist->length++;    
-    logft(DEBUG_LVL, "Exiting linkedlist_add().");
+    log_debug("Exiting linkedlist_add().");
     return SUCCESSFUL_EXEC;
 }
 
@@ -98,7 +98,7 @@ int linkedlist_add(linkedlist_t* linkedlist, unsigned int index, void* element) 
 /// <param name="index">The index at which to remove the element. This cannot exceed the length of the linked list.</param>
 /// <returns>Value of SUCCESSFUL_EXEC if successful.</returns>
 int linkedlist_remove(linkedlist_t* linkedlist, unsigned int index) {
-    logft(DEBUG_LVL, "Entering linkedlist_remove() at index %d.", index);
+    log_debug("Entering linkedlist_remove() at index %d.", index);
     if (linkedlist == NULL) {
         // Linked list cannot be null.
         return NULL_LINKED_LIST_ERRNO;
@@ -158,7 +158,7 @@ int linkedlist_remove(linkedlist_t* linkedlist, unsigned int index) {
     free(cnode);
     
     linkedlist->length--;    
-    logft(DEBUG_LVL, "Exiting linkedlist_remove().");
+    log_debug("Exiting linkedlist_remove().");
     return SUCCESSFUL_EXEC;
 }
 
@@ -170,7 +170,7 @@ int linkedlist_remove(linkedlist_t* linkedlist, unsigned int index) {
 /// <param name="element">The out parameter for the element. This should (not checked) be null when called.</param>
 /// <returns>Value of SUCCESSFUL_EXEC if successful.</returns>
 int linkedlist_get(linkedlist_t* linkedlist, unsigned int index, void** element) {
-    logft(DEBUG_LVL, "Entering linkedlist_get() at index %d.", index);
+    log_debug("Entering linkedlist_get() at index %d.", index);
     if (linkedlist == NULL) {
         // Linked list cannot be null.
         return NULL_LINKED_LIST_ERRNO;
@@ -204,7 +204,7 @@ int linkedlist_get(linkedlist_t* linkedlist, unsigned int index, void** element)
     }
     
     *element = cnode->element;    
-    logft(DEBUG_LVL, "Exiting linkedlist_get().");
+    log_debug("Exiting linkedlist_get().");
     return SUCCESSFUL_EXEC;
 }
 
@@ -215,7 +215,7 @@ int linkedlist_get(linkedlist_t* linkedlist, unsigned int index, void** element)
 /// <param name="linkedlist">The linked list to destroy. This cannot be null.</param>
 /// <returns>Value of SUCCESSFUL_EXEC if successful.</returns>
 int linkedlist_destroy(linkedlist_t* linkedlist) {
-    logft(DEBUG_LVL, "Entering linkedlist_destroy().");
+    log_debug("Entering linkedlist_destroy().");
     if (linkedlist == NULL) {
         // Linked list cannot be null.
         return NULL_LINKED_LIST_ERRNO;
@@ -234,7 +234,7 @@ int linkedlist_destroy(linkedlist_t* linkedlist) {
     linkedlist->tail = NULL;
     linkedlist->length = 0;
     
-    logft(DEBUG_LVL, "Exiting linkedlist_destroy().");
+    log_debug("Exiting linkedlist_destroy().");
     return SUCCESSFUL_EXEC;
 }
 
@@ -244,7 +244,7 @@ int linkedlist_destroy(linkedlist_t* linkedlist) {
 /// <param name="queue">The queue to initialize. This cannot be null.</param>
 /// <returns>Value of SUCCESSFUL_EXEC if successful.</returns>
 int queue_init(queue_t* queue) {
-    logft(DEBUG_LVL, "Entering queue_init().");
+    log_debug("Entering queue_init().");
     if (queue == NULL) {
         // Queue cannot be null.
         return NULL_QUEUE_ERRNO;
@@ -255,7 +255,7 @@ int queue_init(queue_t* queue) {
     linkedlist_init(llist);
     queue->llist = llist;
     
-    logft(DEBUG_LVL, "Exiting queue_init().");
+    log_debug("Exiting queue_init().");
     return SUCCESSFUL_EXEC;
 }
 
@@ -266,7 +266,7 @@ int queue_init(queue_t* queue) {
 /// <param name="element">The element to enqueue.</param>
 /// <returns>Value of SUCCESSFUL_EXEC if successful.</returns>
 int queue_enqueue(queue_t* queue, void* element) {    
-    logft(DEBUG_LVL, "Entering queue_enqueue().");
+    log_debug("Entering queue_enqueue().");
     if (queue == NULL) {
         // Queue cannot be null.
         return NULL_QUEUE_ERRNO;
@@ -277,7 +277,7 @@ int queue_enqueue(queue_t* queue, void* element) {
         return result;
     }
     
-    logft(DEBUG_LVL, "Exiting queue_enqueue().");
+    log_debug("Exiting queue_enqueue().");
     return SUCCESSFUL_EXEC;
 }
 
@@ -288,7 +288,7 @@ int queue_enqueue(queue_t* queue, void* element) {
 /// <param name="element">The out parameter for the element. This should (not checked) be null when called.</param>
 /// <returns>Value of SUCCESSFUL_EXEC if successful.</returns>
 int queue_dequeue(queue_t* queue, void** element) {
-    logft(DEBUG_LVL, "Entering queue_dequeue().");
+    log_debug("Entering queue_dequeue().");
     if (queue == NULL) {
         // Queue cannot be null.
         return NULL_QUEUE_ERRNO;
@@ -314,7 +314,7 @@ int queue_dequeue(queue_t* queue, void** element) {
         return result;
     }
     
-    logft(DEBUG_LVL, "Exiting queue_dequeue().");
+    log_debug("Exiting queue_dequeue().");
     return SUCCESSFUL_EXEC;
 }
 
@@ -325,7 +325,7 @@ int queue_dequeue(queue_t* queue, void** element) {
 /// <param name="queue">The queue to destroy. This cannot be null.</param>
 /// <returns>Value of SUCCESSFUL_EXEC if successful.</returns>
 int queue_destroy(queue_t* queue) {
-    logft(DEBUG_LVL, "Entering queue_destroy().");
+    log_debug("Entering queue_destroy().");
     if (queue == NULL) {
         // Queue cannot be null.
         return NULL_QUEUE_ERRNO;
@@ -335,6 +335,6 @@ int queue_destroy(queue_t* queue) {
     linkedlist_destroy(queue->llist);
     queue->llist = NULL;
     
-    logft(DEBUG_LVL, "Exiting queue_destroy().");
+    log_debug("Exiting queue_destroy().");
     return SUCCESSFUL_EXEC;
 }

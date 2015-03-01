@@ -18,10 +18,10 @@ const int NULL_LINKED_LIST_ERRNO = 4;
 const int NULL_QUEUE_ERRNO = 5;
 
 int main(void) {
-    testresults_t results;
+    struct testresults_t results;
 
-    // // Tests linked list.
-    linkedlist_t linkedlist;
+    // Tests linked list.
+    struct linkedlist_t linkedlist;
     tests_start(&results, stdout);
     test_linkedlist_init(&results, &linkedlist);
     test_linkedlist_addall(&results, &linkedlist);
@@ -35,7 +35,7 @@ int main(void) {
     tests_end(&results);
     
     // Tests queue.
-    queue_t queue;
+    struct queue_t queue;
     tests_start(&results, stdout);
     test_queue_init(&results, &queue);
     test_queue_queueall(&results, &queue);
@@ -167,19 +167,19 @@ void test_queue_destroy(testresults_t* results, queue_t* queue) {
 }
 
 void test_linkedlist_printlist(linkedlist_t* linkedlist) {
-    logft(DEBUG_LVL, "test_linkedlist_printlist(): Printing list of elements.");
+    log_debug("test_linkedlist_printlist(): Printing list of elements.");
     node_t *cnode = linkedlist->head;
     while (cnode != NULL) {
-        logft(DEBUG_LVL, "%s", (char*) cnode->element);
+        log_debug("%s", (char*) cnode->element);
         cnode = cnode->next;
     }
 }
 
 void test_linkedlist_rprintlist(linkedlist_t* linkedlist) {
-    logft(DEBUG_LVL, "test_linkedlist_rprintlist(): Printing reverse list of elements.");
+    log_debug("test_linkedlist_rprintlist(): Printing reverse list of elements.");
     node_t *cnode = linkedlist->tail;
     while (cnode != NULL) {
-        logft(DEBUG_LVL, "%s", (char*) cnode->element);
+        log_debug("%s", (char*) cnode->element);
         cnode = cnode->previous;
     }
 }

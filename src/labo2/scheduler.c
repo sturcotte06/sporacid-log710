@@ -1,18 +1,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <errno.h>
-#include <pthread.h>
 #include <time.h>
 #include <semaphore.h>
-#include <stdarg.h>
 #include "lib/logging.h"
 #include "lib/collections.h"
 #include "scheduler.h"
 
+#define RESOURCE_TYPE_COUNT 4
+#define PROCESS_PRIORITY_COUNT 4
+#define SMALL_BUFFER_SIZE 64
+#define BIG_BUFFER_SIZE 1024
+
 // Set the logging level to whatever we need for debugging purposes.
-int loglevel = INFO_LVL;
+int loglevel = DEBUG_LVL;
 
 // Constant for a successful execution.
 const int SUCCESSFUL_EXEC = 0;
@@ -26,6 +27,9 @@ const int OUT_OF_BOUNDS_ERRNO = 101;
 // Constant for the error number when trying to modify a null linked list.
 const int NULL_LINKED_LIST_ERRNO = 102;
 
+// Constant for the error number when trying to modify a null queue.
+const int NULL_QUEUE_ERRNO = 103;
+
 // Constant for the error number for illegal arguments.
 const int ILLEGAL_ARGUMENTS_ERRNO = 10;
 
@@ -38,26 +42,14 @@ const int POSSIBLE_DEADLOCK_PROCESS_ERRNO = 12;
 // Constant for the error number if a required file does not exist.
 const int FILE_UNEXISTING_ERRNO = 13;
 
-// Default buffer size. If input exceeds, expect the program to return an error code.
-const int BUFF_SIZE = 1024;
-
 // Constants for the available resources count.
-const int PRINTER_CNT = 2;
-const int SCANNER_CNT = 1;
-const int MODEM_CNT = 1;
-const int CD_CNT = 2;
+const int RESOURCE_COUNTS[RESOURCE_TYPE_COUNT] = { 2, 1, 1, 2 };
 
-// Buffer for all resources.
-resource_t* resources;
+// Array of all queues for each priorities.
+queue_t* process_queues[PROCESS_PRIORITY_COUNT];
 
-// The number of resources.
-int resxcnt;
-
-// Buffer for all processes.
-process_t* processes;
-
-// The number of processes.
-int proccnt;
+// Array of resources by resource type.
+resource_t* resources[RESOURCE_TYPE_COUNT];
 
 // 1: lire fichier list process (done)
 // 2: process temps réel
@@ -68,17 +60,25 @@ int proccnt;
 int main(int argc, char* argv[]) {
 	// We only receive 1 argument: the name of the process list file.
 	if (argc != 2) {
+        log_fatal("Illegal number of arguments. The application takes a single argument, which is the path to a process file.");
 		exit(ILLEGAL_ARGUMENTS_ERRNO);
-	}
+	} 
     
 	// Get the only argument (The process list file name).
 	char* procfile = argv[1];
     
     // Initialize the scheduler.
-    init_scheduler(procfile);
+    int result;
+    if ((result = init_scheduler(procfile, process_queues, resources)) != SUCCESSFUL_EXEC) {
+        log_fatal("Could not initialize the scheduler. The process cannot continue.");
+        exit(result);
+    }
     
     // Start the scheduler.
-    start_scheduler(processes, proccnt, resources, resxcnt);
+    if ((result = start_scheduler(process_queues, resources)) != SUCCESSFUL_EXEC) {
+        log_fatal("Could not start the scheduler. The process cannot continue.");
+        exit(result);
+    }
 
     // Done.
     exit(SUCCESSFUL_EXEC);
@@ -86,57 +86,77 @@ int main(int argc, char* argv[]) {
 
 // Initialize the scheduler data.
 // After this function call, the scheduler has to be ready to be ran.
-int init_scheduler(char* procfile) {
-    logft(INFO_LVL, "Initializing scheduler...");
-    init_resources();
-	init_processes(procfile);
+int init_scheduler(char* procfile, queue_t* process_queues[], resource_t* resources[]) {
+    log_info("Entering init_scheduler().");
     
-    logft(INFO_LVL, "Scheduler initialized.");
+    // First initialize resources. 
+    // We need to know what resources are available to detect possible deadlocks.
+    int result;
+    if ((result = init_resources(resources)) != SUCCESSFUL_EXEC) {
+        log_error("init_scheduler(): unable to initialize resources.");
+        return result;
+    }
+    
+    // Then, initiatlize processes.
+    if ((result = init_processes(procfile, process_queues, resources)) != SUCCESSFUL_EXEC) {
+        log_error("init_scheduler(): unable to initialize processes.");
+        return result;
+    }
+    
+    log_info("Exiting init_scheduler().");
     return SUCCESSFUL_EXEC;
 }
 
 // Initialize the list of processes to schedule.
-int init_processes(char* procfile) {
-    logft(INFO_LVL, "Initializing processes of scheduler...");
+int init_processes(char* procfile, queue_t* process_queues[], resource_t* resources[]) {
+    log_info("Entering init_processes().");
 
-    // Allocate memory for processes.
-    processes = malloc(BUFF_SIZE * sizeof(process_t));
-    proccnt = 0;
-    
-    FILE* file;
-    char* line;
-    size_t len = 0;
-    ssize_t read;
+    int i; for (i = 0; i < PROCESS_PRIORITY_COUNT; i++) {
+        // Allocate memory for the process queue.
+        process_queues[i] = malloc(sizeof(queue_t));
+        // Initialize the queue.
+        queue_init(process_queues[i]);
+    }    
     
     // Open the file in read mode.
-    logft(INFO_LVL, "Opening process list file %s...", procfile);
-    if ((file = fopen(procfile, "r")) == NULL) {
+    log_info("Opening process list file \"%s\".", procfile);
+    FILE* file;
+    if ((file = fopen("liste-taches", "r")) == NULL) {
         return FILE_UNEXISTING_ERRNO;
     }
     
     // Read the file line by line. Every line is a process.
+    char* line; size_t len; ssize_t read;
     while ((read = getline(&line, &len, file)) != -1) {
-        // Truncate last newline character.
-        line[strlen(line) - 1] = '\0';
-    
-        // Parse the line into a process struct.
-        int result = parse_process(line, &processes[proccnt]);
-        if (result == INVALID_PROCESS_SERIALIZATION_ERRNO) {
-            logft(ERROR_LVL, "Process could not be deserialized. The process will not be run.");
-        } else if (result == POSSIBLE_DEADLOCK_PROCESS_ERRNO) {
-            logft(ERROR_LVL, "Process definition could lead to a deadlock. The process will not be run.");
-        } else {
-            proccnt++;        
-        }
+       // Truncate last newline character.
+       line[strlen(line) - 1] = '\0';
+       
+       // Parse the line into a process struct.
+       process_t* process = malloc(sizeof(process_t));
+       int result = parse_process(line, process);        
+       if (result == INVALID_PROCESS_SERIALIZATION_ERRNO) {
+           // Deserialization error, just skip this process.
+           free(process);
+           log_warn("Process \"%s\" could not be deserialized. It will be skipped.", line);
+       } else if (result == POSSIBLE_DEADLOCK_PROCESS_ERRNO) {
+           // Process definition requires more resources than available, just skip the process.
+           free(process);
+           log_warn("Process definition could lead to a deadlock. The process will not be run.");
+       } else {
+           // Queue the process in the right priority queue.
+           queue_enqueue(process_queues[process->priority], process);
+           log_info("Process \"%s\" was queued and is ready to be executed.", line);
+       }
     }
     
-    logft(INFO_LVL, "Processes of scheduler initialized.");
+    fclose(file);
+    log_info("Exiting init_processes().");
     return SUCCESSFUL_EXEC;
 }
 
 // Parse a single process string representation.
 int parse_process(char* unparsedproc, process_t* proc) {
-    logft(INFO_LVL, "Parsing serialized process [%s]...", unparsedproc);
+    log_info("Entering parse_process() with process \"%s\".", unparsedproc);
         
     // Keep the size of a process struct, in integers, so we never
     // get segfaults.
@@ -151,67 +171,44 @@ int parse_process(char* unparsedproc, process_t* proc) {
     while (tok != NULL && tokcnt < procsz) {        
         // Interpret token as an integer.
         values[tokcnt++] = (unsigned) atoi(tok);
-        
         // Fetch next token.
         tok = strtok(NULL, delimiter);
     }
     
     // Validate process data.
-    if (proc->finish_time == 0) 
+    if (proc->finish_time == 0 || 
+        proc->priority > low || 
+        proc->exec_time == 0) {
         return INVALID_PROCESS_SERIALIZATION_ERRNO;
-    if (proc->priority > low) 
-        return INVALID_PROCESS_SERIALIZATION_ERRNO;
-    if (proc->exec_time == 0) 
-        return INVALID_PROCESS_SERIALIZATION_ERRNO;
-    if (proc->printer_cnt > PRINTER_CNT) 
-        return POSSIBLE_DEADLOCK_PROCESS_ERRNO;
-    if (proc->scanner_cnt > SCANNER_CNT) 
-        return POSSIBLE_DEADLOCK_PROCESS_ERRNO;
-    if (proc->modem_cnt > MODEM_CNT) 
-        return POSSIBLE_DEADLOCK_PROCESS_ERRNO;
-    if (proc->cd_cnt > CD_CNT) 
-        return POSSIBLE_DEADLOCK_PROCESS_ERRNO;
+    }
     
-    logft(INFO_LVL, "Serialized process parsed. Its priority is %d.", (int) proc->priority);
+    if (proc->printer_cnt > RESOURCE_COUNTS[printer] ||
+        proc->scanner_cnt > RESOURCE_COUNTS[scanner] || 
+        proc->modem_cnt > RESOURCE_COUNTS[modem] ||
+        proc->modem_cnt > RESOURCE_COUNTS[cd]) {
+        return POSSIBLE_DEADLOCK_PROCESS_ERRNO;
+    }
+    
+    log_info("Exiting parse_process().");
     return SUCCESSFUL_EXEC;
 }
 
 // Initialize available resources for this scheduler.
-int init_resources() {
-    logft(INFO_LVL, "Initializing resources of scheduler...");
+int init_resources(resource_t* resources[]) {
+    log_info("Entering init_resources().");
     
-    // Allocate memory for resources.
-    resources = malloc(4 * sizeof(resource_t));
-	resxcnt = 4;
+    int i; for (i = 0; i < RESOURCE_TYPE_COUNT; i++) {
+        resources[i] = malloc(sizeof(resource_t));
+        resources[i]->semaphore = malloc(sizeof(sem_t));
+        resources[i]->type = (resource_type_t) i;
+        sem_init(resources[i]->semaphore, 0, RESOURCE_COUNTS[i]);
+    }
     
-    // Hardcode resources, because pdf says so.
-    // Printers.
-    logft(INFO_LVL, "Initializing printer resources...");
-    resources[0].type = printer;
-    sem_init(&resources[0].semaphore, 0, PRINTER_CNT);
-    
-    // Scanners.
-    logft(INFO_LVL, "Initializing scanner resources...");
-    resources[1].type = scanner;
-    sem_init(&resources[1].semaphore, 0, SCANNER_CNT);
-    
-    // Modems.
-    logft(INFO_LVL, "Initializing modem resources...");
-    resources[2].type = modem;
-    sem_init(&resources[2].semaphore, 0, MODEM_CNT);
-    
-    // Cds.
-    logft(INFO_LVL, "Initializing cd resources...");
-    resources[3].type = cd;
-    sem_init(&resources[3].semaphore, 0, CD_CNT);
-    
-    logft(INFO_LVL, "Resources of scheduler initialized.");
+    log_info("Exiting init_resources().");
     return SUCCESSFUL_EXEC;
 }
 
 // Starts the scheduler.
-int start_scheduler(process_t* processes, int proccnt, resource_t* resources, int rexcnt) {
-    // Create queues for all priority levels.
-    // queue_t queues[4];
+int start_scheduler(queue_t* process_queues[], resource_t* resources[]) {
     return SUCCESSFUL_EXEC;
 }

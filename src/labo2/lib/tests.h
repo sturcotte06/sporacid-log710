@@ -1,6 +1,3 @@
-#define false 0
-#define true 1
-
 // Constant for a successful execution.
 extern const int SUCCESSFUL_EXEC;
 
@@ -12,8 +9,6 @@ typedef struct testresults_t testresults_t;
 struct testresults_t {
     int passedcnt;
     int failcnt;
-    /*long int memoryusage_start;
-    long int memoryusage_end;*/
     unsigned int timestamp_start;
     unsigned int timestamp_end;
     FILE* stream;
