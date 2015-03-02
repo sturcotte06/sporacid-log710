@@ -17,28 +17,31 @@ const char* LEVEL_STRINGS[LEVEL_COUNT] = { "Trace", "Debug", "Info", "Warning", 
 /// </summary>
 /// <param name="stream">The log output stream. If null, the event will not be logged.</param>
 /// <param name="level">The level of the event.</param>
+/// <param name="file">The file in which the event occured.</param>
+/// <param name="line">The line at which the event occured.</param>
+/// <param name="func">the function in which the event occured.</param>
 /// <param name="format">The format string of the message.</param>
 /// <param name="...">The variable number of arguments for the format.</param>
-void flog_format(FILE* stream, const unsigned int level, const char* format, ...) {
+void flog_format(FILE* stream, const unsigned int level, const char *file, int line, const char *func, const char* format, ...) {
     if (level < loglevel) {
         return; // This message does not need to be logged.
     }
-    
+
     if (stream == NULL) {
         return;  // Can't log to null stream (no-op).
     }
-    
+
     // Load the variable args list.
     va_list args;
     va_start(args, format);
-    
+
     // Get the formatted message for the event.
     char fmessage[LOG_BUFFER_SIZE];
-    get_fmessage(fmessage, level, format, args);
-    
+        get_fmessage(fmessage, level, file, line, func, format, args);
+
     // Print the message in the stream.
     fputs(fmessage, stream);
-    
+
     // Umload variable args list.
     va_end(args);
 }
@@ -50,21 +53,24 @@ void flog_format(FILE* stream, const unsigned int level, const char* format, ...
 /// </summary>
 /// <param name="stream">The log output stream. If null, the event will not be logged.</param>
 /// <param name="level">The level of the event.</param>
+/// <param name="file">The file in which the event occured.</param>
+/// <param name="line">The line at which the event occured.</param>
+/// <param name="func">the function in which the event occured.</param>
 /// <param name="format">The format string of the message.</param>
 /// <param name="args">The variable number of arguments for the format.</param>
-void vflog_format(FILE* stream, const unsigned int level, const char* format, va_list args) {
+void vflog_format(FILE* stream, const unsigned int level, const char *file, int line, const char *func, const char* format, va_list args) {
     if (level < loglevel) {
         return; // This message does not need to be logged.
     }
-    
+
     if (stream == NULL) {
         return;  // Can't log to null stream (no-op).
     }
-    
+
     // Get the formatted message for the event.
     char fmessage[LOG_BUFFER_SIZE];
-    get_fmessage(fmessage, level, format, args);
-    
+    get_fmessage(fmessage, level, file, line, func, format, args);
+
     // Print the message in the stream.
     fputs(fmessage, stream);
 }
@@ -74,21 +80,28 @@ void vflog_format(FILE* stream, const unsigned int level, const char* format, va
 /// </summary>
 /// <param name="fmessage">The output formatted message</param>
 /// <param name="level">The level of the event.</param>
+/// <param name="file">The file in which the event occured.</param>
+/// <param name="line">The line at which the event occured.</param>
+/// <param name="func">the function in which the event occured.</param>
 /// <param name="format">The format string of the message.</param>
 /// <param name="args">The variable number of arguments for the format.</param>
 /// <returns>The formatted message.</returns>
-void get_fmessage(char* fmessage, const unsigned int level, const char* format, va_list args) {    
+void get_fmessage(char* fmessage, const unsigned int level, const char *file, int line, const char *func, const char* format, va_list args) {    
     // Preformat the current timestamp.
     time_t now = time(NULL);
     char* nowstr = ctime(&now);
     nowstr[strlen(nowstr) - 1] = '\0';
 
+    // Preformat the location in the file.
+    char location[LOG_BUFFER_SIZE];
+    sprintf(location, "%s %d %s()", file, line, func);
+    
     // Format the header of the log.
     int len;
-    len = sprintf(fmessage, " %-6s  %s  ", 
-        get_level_string(level), 
-        /*pthread_self(), */
-        nowstr);
+    len = sprintf(fmessage, " %-7s  %s  %-50s  ",
+        get_level_string(level),
+        nowstr,
+        location);
 
     // Advance the pointer.
     fmessage += len;
@@ -98,7 +111,7 @@ void get_fmessage(char* fmessage, const unsigned int level, const char* format, 
 
     // Advance the pointer.
     fmessage += len;
-    
+
     // Add a carriage by default.
     sprintf(fmessage, "\n");
 }

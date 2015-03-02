@@ -137,7 +137,7 @@ int init_processes(char* procfile, queue_t* process_queues[], resource_t* resour
        if (result == INVALID_PROCESS_SERIALIZATION_ERRNO) {
            // Deserialization error, just skip this process.
            free(process);
-           log_warn("Process \"%s\" could not be deserialized. It will be skipped.", line);
+           log_warn("Process could not be deserialized. It will be skipped.");
        } else if (result == POSSIBLE_DEADLOCK_PROCESS_ERRNO) {
            // Process definition requires more resources than available, just skip the process.
            free(process);
@@ -145,7 +145,7 @@ int init_processes(char* procfile, queue_t* process_queues[], resource_t* resour
        } else {
            // Queue the process in the right priority queue.
            queue_enqueue(process_queues[process->priority], process);
-           log_info("Process \"%s\" was queued and is ready to be executed.", line);
+           log_info("Process was queued and is ready to be executed.");
        }
     }
     
@@ -159,7 +159,7 @@ int parse_process(char* unparsedproc, process_t* proc) {
     log_info("Entering parse_process() with process \"%s\".", unparsedproc);
         
     // Keep the size of a process struct, in integers, so we never
-    // get segfaults.
+    // get segfaults (lol never, this is Cparta smartass).
     const int procsz = sizeof(process_t) / sizeof(int);
     const char* delimiter = ", ";
     
@@ -182,10 +182,11 @@ int parse_process(char* unparsedproc, process_t* proc) {
         return INVALID_PROCESS_SERIALIZATION_ERRNO;
     }
     
+    // Validate process' resource usage.
     if (proc->printer_cnt > RESOURCE_COUNTS[printer] ||
         proc->scanner_cnt > RESOURCE_COUNTS[scanner] || 
         proc->modem_cnt > RESOURCE_COUNTS[modem] ||
-        proc->modem_cnt > RESOURCE_COUNTS[cd]) {
+        proc->cd_cnt > RESOURCE_COUNTS[cd]) {
         return POSSIBLE_DEADLOCK_PROCESS_ERRNO;
     }
     
