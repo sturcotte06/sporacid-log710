@@ -8,7 +8,7 @@
 #include "collections.h"
 #include "collections_tests.h"
 
-int loglevel = INFO_LVL;
+unsigned int loglevel = INFO_LVL;
 
 const int TEST_SIZE = 100;
 const int SUCCESSFUL_EXEC = 0;

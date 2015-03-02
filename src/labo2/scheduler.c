@@ -1,19 +1,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <semaphore.h>
 #include "lib/logging.h"
 #include "lib/collections.h"
 #include "scheduler.h"
 
+// Define useful macros.
 #define RESOURCE_TYPE_COUNT 4
 #define PROCESS_PRIORITY_COUNT 4
 #define SMALL_BUFFER_SIZE 64
 #define BIG_BUFFER_SIZE 1024
 
 // Set the logging level to whatever we need for debugging purposes.
-int loglevel = DEBUG_LVL;
+unsigned int loglevel = DEBUG_LVL;
 
 // Constant for a successful execution.
 const int SUCCESSFUL_EXEC = 0;
