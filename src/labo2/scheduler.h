@@ -36,7 +36,7 @@ struct resource_t {
 typedef struct process_t {
     pid_t pid;
     unsigned int has_executed_once;
-	unsigned int finish_time;
+	unsigned int input_time;
 	priority_t priority;
 	unsigned int exec_time;
 	unsigned int resx_cnt[4];
@@ -58,11 +58,11 @@ int init_resources(resource_t* resources[]);
 // Starts the scheduler.
 int start_scheduler(queue_t* process_queues[], resource_t* resources[]);
 
-// Runs all available real time processes.
-int run_realtime_processes(queue_t* realtime_queue);
+// Runs a process without cpu requisition. The process can still timeout.
+int run_nonpremptive_process(process_t* process);
 
-// Runs all available user processes.
-int run_user_processes(queue_t* user_queues[]);
+// Runs a process with cpu requisition.
+int run_premptive_process(process_t* process);
 
 // Executes the child process.
 void execute_process(process_t* process);
@@ -81,3 +81,6 @@ static void handle_timeout(int signo);
 
 // Handles a process that expired its time quantum.
 static void handle_quantum_expiration(int signo);
+
+// Sorts a process buffer by input time.
+void sort_by_input_time(process_t* input_processes[], int length);

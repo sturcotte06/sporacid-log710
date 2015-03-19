@@ -4,6 +4,7 @@
 #include <string.h>
 #include <semaphore.h>
 #include <time.h>
+#include <wait.h>
 #include <signal.h>
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -56,6 +57,12 @@ const int FILE_UNEXISTING_ERRNO = 13;
 // Constants for the available resources count.
 const int RESOURCE_COUNTS[RESOURCE_TYPE_COUNT] = { 2, 1, 1, 2 };
 
+// The input processes before they are queued.
+process_t* input_processes[SMALL_BUFFER_SIZE];
+
+// The input processes length.
+int input_processes_length;
+
 // Array of all queues for each priorities.
 queue_t* process_queues[PROCESS_PRIORITY_COUNT];
 
@@ -64,6 +71,9 @@ resource_t* resources[RESOURCE_TYPE_COUNT];
 
 // The process that currently has the cpu.
 process_t* current_running_process;
+
+// Clock to know which processes arrives when.
+int global_clock;
 
 // Main method that will execute the scheduler.
 int main(int argc, char* argv[]) {
@@ -152,8 +162,8 @@ int init_processes(char* procfile, queue_t* process_queues[], resource_t* resour
            free(process);
            log_warn("Process definition could lead to a deadlock. The process will not be run.");
        } else {
-           // Queue the process in the right priority queue.
-           queue_enqueue(process_queues[process->priority], process);
+           // Add the process to the input processes.
+           input_processes[input_processes_length++] = process;
            log_info("Process was queued and is ready to be executed.");
        }
     }
@@ -186,8 +196,7 @@ int parse_process(char* unparsedproc, process_t* proc) {
     }
     
     // Validate process data.
-    if (proc->finish_time == 0 || 
-        proc->priority > low || 
+    if (proc->priority > low || 
         proc->exec_time == 0) {
         return INVALID_PROCESS_SERIALIZATION_ERRNO;
     }
@@ -221,74 +230,114 @@ int init_resources(resource_t* resources[]) {
 
 // Starts the scheduler.
 int start_scheduler(queue_t* process_queues[], resource_t* resources[]) {
-    run_realtime_processes(process_queues[realtime]);
-    run_user_processes(process_queues);
+    log_info("Entering start_scheduler().");
+    
+    // It is critical that input processes are in the right order.
+    int iproc = 0;
+    sort_by_input_time(input_processes, input_processes_length);
+    
+    while (true) {
+        log_info("Global clock tick %d.", global_clock);
+        
+        // Queue all processes that arrived at this tick of the global clock.
+        while (iproc < input_processes_length && input_processes[iproc]->input_time == global_clock) {
+            log_info("Process (%s) is entering the scheduler.", process_to_string(input_processes[iproc]));
+            priority_t priority = input_processes[iproc]->priority;
+            queue_enqueue(process_queues[priority], input_processes[iproc]);
+            iproc++;
+        }
+        
+        // In order of priority, run the first process that can be dequeued.
+        int proc_exists_in_queues = false;
+        int i; for (i = 0; i < PROCESS_PRIORITY_COUNT && !proc_exists_in_queues; i++) {
+            // Dequeue one element from the current queue.
+            void* element;
+            queue_dequeue(process_queues[i], &element);
+            
+            if (element != NULL) {
+                // Process existed in the queue. Run it.
+                switch (i) {
+                    case realtime:
+                        run_nonpremptive_process(element);
+                        break;
+                    default:
+                        run_premptive_process(element);
+                        break;
+                }
+                
+                // One process ran. Break this loop.
+                proc_exists_in_queues = true;
+            }
+        }
+        
+        if (!proc_exists_in_queues && iproc >= input_processes_length) {
+            // No more input and no more processes to be ran.
+            log_info("No more processes exist in the input or in the queues. Scheduler will now shutdown.");
+            break;
+        } else {
+            // Keep ticking.
+            global_clock++;
+            // sleep(1);
+        }
+    }
+    
+    log_info("Exiting start_scheduler().");
     return SUCCESSFUL_EXEC;
 }
 
-// Runs all available real time processes.
-int run_realtime_processes(queue_t* realtime_queue) {
-    log_info("Entering run_realtime_processes().");
-    if (signal(SIGALRM, handle_timeout) == SIG_ERR) {
-        log_error("Could not set the signal handler for timeouts.");
-        return -1;
-    }
-        
-    void* element;
-    queue_dequeue(realtime_queue, &element);
-    while (element != NULL) {
-        // Cast the element to a process struct pointer, because that's what we queued.
-        current_running_process = (process_t*) element;
-        
-        // Execute the process.
-        execute_process(current_running_process);
+// Runs a process with cpu requisition.
+int run_premptive_process(process_t* process) {
+    log_info("Entering run_premptive_process().");
 
-        // Real time processes are not interrupted.
-        alarm(current_running_process->exec_time);
-        
-        // Dequeue next element.
-        queue_dequeue(realtime_queue, &element);
-    }
-
-    signal(SIGALRM, SIG_DFL);
-    log_info("Exiting run_realtime_processes().");
-    return SUCCESSFUL_EXEC;
-}
-
-// Runs all available user processes.
-int run_user_processes(queue_t* user_queues[]) {
-    log_info("Entering run_user_processes().");
+    // Set an handler for the quantum expiration.
     if (signal(SIGALRM, handle_quantum_expiration) == SIG_ERR) {
         log_error("Could not set the signal handler for quantum expirations.");
         return -1;
     }
-
-    int iQueue; for (iQueue = high; iQueue < PROCESS_PRIORITY_COUNT; iQueue++) {
     
-        void* element;
-        queue_dequeue(user_queues[iQueue], &element);
-        while (element != NULL) {
-            // Cast the element to a process struct pointer, because that's what we queued.
-            current_running_process = (process_t*) element;
-            
-            // Acquire all resources the process needs.
-            acquire_resources(current_running_process, resources);
-                        
-            // Execute the process.
-            execute_process(current_running_process);
-            alarm(QUANTUM);
-            waitpid(current_running_process->pid, NULL, WUNTRACED);
+    // Set the currently running process.
+    current_running_process = process;
+    
+    // Acquire all resources the process needs.
+    acquire_resources(current_running_process, resources);
+                
+    // Execute the process.
+    execute_process(current_running_process);
+    alarm(QUANTUM);
+    waitpid(current_running_process->pid, NULL, WUNTRACED);
 
-            // Releases all resources the process has.
-            release_resources(current_running_process, resources);
-            
-            // Dequeue next element.
-            queue_dequeue(user_queues[iQueue], &element);
-        }
+    // Releases all resources the process has.
+    release_resources(current_running_process, resources);
+        
+    // Remove quantum expiration handler.
+    signal(SIGALRM, SIG_DFL);
+    log_info("Exiting run_premptive_process().");
+    return SUCCESSFUL_EXEC;
+}
+
+// Runs a process without cpu requisition. The process can still timeout.
+int run_nonpremptive_process(process_t* process) {
+    log_info("Entering run_nonpremptive_process().");
+    
+    // Set an handler for the timeout.
+    if (signal(SIGALRM, handle_timeout) == SIG_ERR) {
+        log_error("Could not set the signal handler for timeouts.");
+        return -1;
     }
     
+    // Set the currently running process.
+    current_running_process = process;
+    
+    // Execute the process.
+    execute_process(current_running_process);
+
+    // Non preemptive. Set a timeout, and wait for either timeout or process end.
+    alarm(current_running_process->exec_time);
+    waitpid(current_running_process->pid, NULL, 0);
+    
+    // Remove timeout handler.
     signal(SIGALRM, SIG_DFL);
-    log_info("Exiting run_user_processes().");
+    log_info("Exiting run_nonpremptive_process().");
     return SUCCESSFUL_EXEC;
 }
 
@@ -405,4 +454,22 @@ static void handle_quantum_expiration(int signo) {
     }
     
     log_info("Exiting handle_quantum_expiration().");
+}
+
+// Sorts a process buffer by input time.
+void sort_by_input_time(process_t* input_processes[], int length) {
+    // Bubble sort, because I don't care.
+    int i; for (i = length - 1; i > 0; i--) {
+        int j; for (j = 0; j < i; j++) {
+            if (input_processes[j] > input_processes[j + 1]) {
+                process_t* temp = input_processes[j];
+                input_processes[j] = input_processes[j + 1];
+                input_processes[j + 1] = temp;
+            }
+        }
+    }
+    
+    for (i = 0; i > length; i++) {
+        log_info("%s", process_to_string(input_processes[i]));
+    }
 }

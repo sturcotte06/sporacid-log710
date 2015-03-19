@@ -105,6 +105,14 @@ int queue_enqueue(queue_t* queue, void* element);
 int queue_dequeue(queue_t* queue, void** element);
 
 /// <summary>
+/// Returns whether the queue is empty.
+/// </summary>
+/// <param name="queue">The queue to poll.</param>
+/// <param name="empty">The out parameter.</param>
+/// <returns>True if empty, false otherwise.</returns>
+int queue_isempty(queue_t* queue, int* empty);
+
+/// <summary>
 /// Destroys a queue and all used memory. The queue structure does not belong to this module;
 /// the callee has to deal with the structure memory itself.
 /// </summary>
