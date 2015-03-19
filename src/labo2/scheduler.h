@@ -33,16 +33,14 @@ struct resource_t {
 };
 
 // Structure for a process.
-typedef struct process_t process_t;
-struct process_t {
+typedef struct process_t {
+    pid_t pid;
+    unsigned int has_executed_once;
 	unsigned int finish_time;
 	priority_t priority;
 	unsigned int exec_time;
-	unsigned int printer_cnt;
-	unsigned int scanner_cnt;
-	unsigned int modem_cnt;
-	unsigned int cd_cnt;
-};
+	unsigned int resx_cnt[4];
+} process_t;
 
 // Initialize the scheduler data.
 // After this function call, the scheduler has to be ready to be ran.
@@ -59,3 +57,27 @@ int init_resources(resource_t* resources[]);
 
 // Starts the scheduler.
 int start_scheduler(queue_t* process_queues[], resource_t* resources[]);
+
+// Runs all available real time processes.
+int run_realtime_processes(queue_t* realtime_queue);
+
+// Runs all available user processes.
+int run_user_processes(queue_t* user_queues[]);
+
+// Executes the child process.
+void execute_process(process_t* process);
+
+// Try to acquire all resources for a process.
+int acquire_resources(process_t* process, resource_t* resources[]);
+
+// Releases all resources for a process.
+int release_resources(process_t* process, resource_t* resources[]);
+
+// Returns a string representing the process.
+char* process_to_string(process_t* process);
+
+// Handles a process that times out.
+static void handle_timeout(int signo);
+
+// Handles a process that expired its time quantum.
+static void handle_quantum_expiration(int signo);

@@ -1,7 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <semaphore.h>
+#include <time.h>
+#include <signal.h>
+#include <sys/resource.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <errno.h>
 #include "lib/logging.h"
 #include "lib/collections.h"
 #include "scheduler.h"
@@ -11,9 +18,13 @@
 #define PROCESS_PRIORITY_COUNT 4
 #define SMALL_BUFFER_SIZE 64
 #define BIG_BUFFER_SIZE 1024
+#define EXECUTABLE "./log710h15process"
+#define QUANTUM 1
+#define true 1
+#define false 0
 
 // Set the logging level to whatever we need for debugging purposes.
-unsigned int loglevel = DEBUG_LVL;
+unsigned int loglevel = INFO_LVL;
 
 // Constant for a successful execution.
 const int SUCCESSFUL_EXEC = 0;
@@ -51,10 +62,8 @@ queue_t* process_queues[PROCESS_PRIORITY_COUNT];
 // Array of resources by resource type.
 resource_t* resources[RESOURCE_TYPE_COUNT];
 
-// 1: lire fichier list process (done)
-// 2: process temps réel
-// 3: process usager
-// 4: ressources
+// The process that currently has the cpu.
+process_t* current_running_process;
 
 // Main method that will execute the scheduler.
 int main(int argc, char* argv[]) {
@@ -79,13 +88,13 @@ int main(int argc, char* argv[]) {
         log_fatal("Could not start the scheduler. The process cannot continue.");
         exit(result);
     }
-
+    
     // Done.
     exit(SUCCESSFUL_EXEC);
 }
 
 // Initialize the scheduler data.
-// After this function call, the scheduler has to be ready to be ran.
+// After this function call, the scheduler has to be ready to be started.
 int init_scheduler(char* procfile, queue_t* process_queues[], resource_t* resources[]) {
     log_info("Entering init_scheduler().");
     
@@ -159,13 +168,14 @@ int parse_process(char* unparsedproc, process_t* proc) {
     log_info("Entering parse_process() with process \"%s\".", unparsedproc);
         
     // Keep the size of a process struct, in integers, so we never
-    // get segfaults (lol never, this is Cparta smartass).
+    // get segfaults (lol never, this is Cparta).
     const int procsz = sizeof(process_t) / sizeof(int);
     const char* delimiter = ", ";
     
     // Since a process is only integers, assume the proc is a int*.
-    unsigned int* values = (unsigned int *) proc;
-
+    // Skip the first value tough.
+    unsigned int* values = ((unsigned int *) (((void*) proc) + sizeof(pid_t))) + 1;
+    
     int tokcnt = 0;
     char* tok = strtok(unparsedproc, delimiter);
     while (tok != NULL && tokcnt < procsz) {        
@@ -183,10 +193,10 @@ int parse_process(char* unparsedproc, process_t* proc) {
     }
     
     // Validate process' resource usage.
-    if (proc->printer_cnt > RESOURCE_COUNTS[printer] ||
-        proc->scanner_cnt > RESOURCE_COUNTS[scanner] || 
-        proc->modem_cnt > RESOURCE_COUNTS[modem] ||
-        proc->cd_cnt > RESOURCE_COUNTS[cd]) {
+    if (proc->resx_cnt[printer] > RESOURCE_COUNTS[printer] ||
+        proc->resx_cnt[scanner] > RESOURCE_COUNTS[scanner] || 
+        proc->resx_cnt[modem] > RESOURCE_COUNTS[modem] ||
+        proc->resx_cnt[cd] > RESOURCE_COUNTS[cd]) {
         return POSSIBLE_DEADLOCK_PROCESS_ERRNO;
     }
     
@@ -211,5 +221,188 @@ int init_resources(resource_t* resources[]) {
 
 // Starts the scheduler.
 int start_scheduler(queue_t* process_queues[], resource_t* resources[]) {
+    run_realtime_processes(process_queues[realtime]);
+    run_user_processes(process_queues);
     return SUCCESSFUL_EXEC;
+}
+
+// Runs all available real time processes.
+int run_realtime_processes(queue_t* realtime_queue) {
+    log_info("Entering run_realtime_processes().");
+    if (signal(SIGALRM, handle_timeout) == SIG_ERR) {
+        log_error("Could not set the signal handler for timeouts.");
+        return -1;
+    }
+        
+    void* element;
+    queue_dequeue(realtime_queue, &element);
+    while (element != NULL) {
+        // Cast the element to a process struct pointer, because that's what we queued.
+        current_running_process = (process_t*) element;
+        
+        // Execute the process.
+        execute_process(current_running_process);
+
+        // Real time processes are not interrupted.
+        alarm(current_running_process->exec_time);
+        
+        // Dequeue next element.
+        queue_dequeue(realtime_queue, &element);
+    }
+
+    signal(SIGALRM, SIG_DFL);
+    log_info("Exiting run_realtime_processes().");
+    return SUCCESSFUL_EXEC;
+}
+
+// Runs all available user processes.
+int run_user_processes(queue_t* user_queues[]) {
+    log_info("Entering run_user_processes().");
+    if (signal(SIGALRM, handle_quantum_expiration) == SIG_ERR) {
+        log_error("Could not set the signal handler for quantum expirations.");
+        return -1;
+    }
+
+    int iQueue; for (iQueue = high; iQueue < PROCESS_PRIORITY_COUNT; iQueue++) {
+    
+        void* element;
+        queue_dequeue(user_queues[iQueue], &element);
+        while (element != NULL) {
+            // Cast the element to a process struct pointer, because that's what we queued.
+            current_running_process = (process_t*) element;
+            
+            // Acquire all resources the process needs.
+            acquire_resources(current_running_process, resources);
+                        
+            // Execute the process.
+            execute_process(current_running_process);
+            alarm(QUANTUM);
+            waitpid(current_running_process->pid, NULL, WUNTRACED);
+
+            // Releases all resources the process has.
+            release_resources(current_running_process, resources);
+            
+            // Dequeue next element.
+            queue_dequeue(user_queues[iQueue], &element);
+        }
+    }
+    
+    signal(SIGALRM, SIG_DFL);
+    log_info("Exiting run_user_processes().");
+    return SUCCESSFUL_EXEC;
+}
+
+// Executes the child process.
+void execute_process(process_t* process) {
+    log_info("Entering execute_process()");
+
+    if (process->has_executed_once) {
+        // Has already executed at least once.
+        log_info("Cpu given to process %s", process_to_string(current_running_process));
+        kill(process->pid, SIGCONT);
+    } else {
+        // Create a pipe to redirect outputs.
+        // pipe(process->pipe);
+        
+        process->has_executed_once = true;
+        process->pid = fork();
+        if (process->pid == 0) {
+            // Redirect stdout to pipe.
+            // close(process->pipe[0]);
+            // dup2(1, process->pipe[1]);
+            
+            // Child process. Start the default executable.
+            char buffer[SMALL_BUFFER_SIZE];
+            sprintf(buffer, "%d", process->exec_time);
+            char* argv[3] = { EXECUTABLE, buffer, NULL };
+            execvp(argv[0], argv);
+            exit(errno);
+        } 
+        
+        // close(process->pipe[1]);
+        log_info("Cpu given to process %s", process_to_string(current_running_process));
+    }
+        
+    log_info("Exiting execute_process().");
+}
+
+// Try to acquire all resources for a process.
+int acquire_resources(process_t* process, resource_t* resources[]) {
+    log_info("Entering acquire_resources().");
+
+    int i; for (i = 0; i < RESOURCE_TYPE_COUNT; i++) {
+        int j; for (j = 0; j < process->resx_cnt[i]; j++) {
+            log_info("Waiting for resource of type %d.", i);
+            sem_wait(resources[i]->semaphore);
+        }
+    }
+    
+    log_info("Exiting acquire_resources().");
+    return SUCCESSFUL_EXEC;
+}
+
+// Releases all resources for a process.
+int release_resources(process_t* process, resource_t* resources[]) {
+    log_info("Entering release_resources().");
+
+        int i; for (i = 0; i < RESOURCE_TYPE_COUNT; i++) {
+        int j; for (j = 0; j < process->resx_cnt[i]; j++) {
+            log_info("Releasing resource of type %d.", i);
+            sem_post(resources[i]->semaphore);
+        }
+    }
+    
+    log_info("Exiting release_resources().");
+    return SUCCESSFUL_EXEC;
+}
+
+// Returns a string representing the process.
+char* process_to_string(process_t* process) {
+    log_info("Entering process_to_string()");
+    
+    char* buffer = malloc(BIG_BUFFER_SIZE * sizeof(char)); // TODO free it.
+    sprintf(buffer, "Process %d Priority: %d Execution time: %d",
+        process->pid, process->priority, process->exec_time);
+    
+    log_info("Exiting process_to_string()");
+    return buffer;
+}
+
+// Handles a process that times out.
+static void handle_timeout(int signo) {
+    log_info("Entering handle_timeout()");
+    
+    // Reached timeout. Kill currently running process.
+    kill(current_running_process->pid, SIGINT);
+    waitpid(current_running_process->pid, NULL, 0);
+    log_info("Process with pid %d timed out.", current_running_process->pid);
+    
+    log_info("Exiting handle_timeout().");
+}
+
+// Handles a process that expired its time quantum.
+static void handle_quantum_expiration(int signo) {
+    log_info("Entering handle_quantum_expiration()");
+    
+    // Decrement the execution time
+    current_running_process->exec_time = current_running_process->exec_time - QUANTUM;
+    
+    // Reached timeout. Kill currently running process.
+    if (current_running_process->exec_time > 0) {
+        log_info("Process with pid %d expired its quantum.", current_running_process->pid);
+        kill(current_running_process->pid, SIGTSTP);
+    
+        // Reenqueue in a lower priority.
+        if (current_running_process->priority != low) {
+            // Lowest priorities have a greater value. Increment the priority.
+            current_running_process->priority = current_running_process->priority + 1;
+        }
+        
+        queue_enqueue(process_queues[current_running_process->priority], current_running_process);
+    } else {
+        log_info("Process with pid %d timed out.", current_running_process->pid);
+        kill(current_running_process->pid, SIGINT);
+    }
+    
+    log_info("Exiting handle_quantum_expiration().");
 }
