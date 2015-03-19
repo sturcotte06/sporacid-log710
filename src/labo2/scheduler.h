@@ -68,7 +68,7 @@ int run_premptive_process(process_t* process);
 void execute_process(process_t* process);
 
 // Try to acquire all resources for a process.
-int acquire_resources(process_t* process, resource_t* resources[]);
+int try_acquire_resources(process_t* process, resource_t* resources[], int* success);
 
 // Releases all resources for a process.
 int release_resources(process_t* process, resource_t* resources[]);

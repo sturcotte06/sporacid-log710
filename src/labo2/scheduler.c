@@ -25,7 +25,7 @@
 #define false 0
 
 // Set the logging level to whatever we need for debugging purposes.
-unsigned int loglevel = INFO_LVL;
+unsigned int loglevel = DEBUG_LVL;
 
 // Constant for a successful execution.
 const int SUCCESSFUL_EXEC = 0;
@@ -65,6 +65,9 @@ int input_processes_length;
 
 // Array of all queues for each priorities.
 queue_t* process_queues[PROCESS_PRIORITY_COUNT];
+
+// The mutex for resources. This is for mutiual exclusion while we acquire resources.
+sem_t resx_mutex;
 
 // Array of resources by resource type.
 resource_t* resources[RESOURCE_TYPE_COUNT];
@@ -217,6 +220,9 @@ int parse_process(char* unparsedproc, process_t* proc) {
 int init_resources(resource_t* resources[]) {
     log_info("Entering init_resources().");
     
+    // Initialize the resource mutex.
+    sem_init(&resx_mutex, 0, 1);
+    
     int i; for (i = 0; i < RESOURCE_TYPE_COUNT; i++) {
         resources[i] = malloc(sizeof(resource_t));
         resources[i]->semaphore = malloc(sizeof(sem_t));
@@ -236,15 +242,35 @@ int start_scheduler(queue_t* process_queues[], resource_t* resources[]) {
     int iproc = 0;
     sort_by_input_time(input_processes, input_processes_length);
     
+    linkedlist_t waiting_processes;
+    linkedlist_init(&waiting_processes);
+    
     while (true) {
         log_info("Global clock tick %d.", global_clock);
         
-        // Queue all processes that arrived at this tick of the global clock.
+        // Add all processes that arrive at this tick into the waiting processes.
         while (iproc < input_processes_length && input_processes[iproc]->input_time == global_clock) {
             log_info("Process (%s) is entering the scheduler.", process_to_string(input_processes[iproc]));
-            priority_t priority = input_processes[iproc]->priority;
-            queue_enqueue(process_queues[priority], input_processes[iproc]);
+            linkedlist_add(&waiting_processes, waiting_processes.length, input_processes[iproc]);
             iproc++;
+        }
+        
+        // Try to acquire all resources for a waiting process.
+        int k = 0;
+        node_t* node = waiting_processes.head;
+        while (node != NULL) {
+            process_t* process = node->element;
+            node = node->next;
+            
+            int success;
+            try_acquire_resources(process, resources, &success);
+            if (success) {
+                // Success: queue in the ready queue in the given priority.
+                queue_enqueue(process_queues[process->priority], process);
+                linkedlist_remove(&waiting_processes, k);
+            } else {
+                k++;
+            }
         }
         
         // In order of priority, run the first process that can be dequeued.
@@ -274,10 +300,9 @@ int start_scheduler(queue_t* process_queues[], resource_t* resources[]) {
             // No more input and no more processes to be ran.
             log_info("No more processes exist in the input or in the queues. Scheduler will now shutdown.");
             break;
-        } else {
+        } else {        
             // Keep ticking.
             global_clock++;
-            // sleep(1);
         }
     }
     
@@ -297,17 +322,18 @@ int run_premptive_process(process_t* process) {
     
     // Set the currently running process.
     current_running_process = process;
-    
-    // Acquire all resources the process needs.
-    acquire_resources(current_running_process, resources);
-                
+                    
     // Execute the process.
     execute_process(current_running_process);
     alarm(QUANTUM);
-    waitpid(current_running_process->pid, NULL, WUNTRACED);
+    
+    int status;
+    waitpid(current_running_process->pid, &status, WUNTRACED);
 
-    // Releases all resources the process has.
-    release_resources(current_running_process, resources);
+    if (WIFEXITED(status)) {
+        // Releases all resources the process has.
+        release_resources(current_running_process, resources);
+    }
         
     // Remove quantum expiration handler.
     signal(SIGALRM, SIG_DFL);
@@ -335,6 +361,9 @@ int run_nonpremptive_process(process_t* process) {
     alarm(current_running_process->exec_time);
     waitpid(current_running_process->pid, NULL, 0);
     
+    // Releases all resources the process has.
+    release_resources(current_running_process, resources);
+    
     // Remove timeout handler.
     signal(SIGALRM, SIG_DFL);
     log_info("Exiting run_nonpremptive_process().");
@@ -349,17 +378,10 @@ void execute_process(process_t* process) {
         // Has already executed at least once.
         log_info("Cpu given to process %s", process_to_string(current_running_process));
         kill(process->pid, SIGCONT);
-    } else {
-        // Create a pipe to redirect outputs.
-        // pipe(process->pipe);
-        
+    } else {        
         process->has_executed_once = true;
         process->pid = fork();
         if (process->pid == 0) {
-            // Redirect stdout to pipe.
-            // close(process->pipe[0]);
-            // dup2(1, process->pipe[1]);
-            
             // Child process. Start the default executable.
             char buffer[SMALL_BUFFER_SIZE];
             sprintf(buffer, "%d", process->exec_time);
@@ -376,16 +398,38 @@ void execute_process(process_t* process) {
 }
 
 // Try to acquire all resources for a process.
-int acquire_resources(process_t* process, resource_t* resources[]) {
+int try_acquire_resources(process_t* process, resource_t* resources[], int* success) {
     log_info("Entering acquire_resources().");
 
-    int i; for (i = 0; i < RESOURCE_TYPE_COUNT; i++) {
-        int j; for (j = 0; j < process->resx_cnt[i]; j++) {
-            log_info("Waiting for resource of type %d.", i);
-            sem_wait(resources[i]->semaphore);
+    sem_wait(&resx_mutex);
+    
+    // Check if we have enough resources.
+    int i, j;
+    int can_satisfy = true;
+    for (i = 0; i < RESOURCE_TYPE_COUNT && can_satisfy; i++) {
+        log_debug("Checking available resources of type %d", i);
+        int available;
+        sem_getvalue(resources[i]->semaphore, &available);
+        log_debug("Available resources of type %d: %d", i, available);
+        if (process->resx_cnt[i] > available) {
+            log_info("Not enough resources of type %d. Need %d, available %d.", resources[i]->type, process->resx_cnt[i], available);
+            can_satisfy = false;
         }
     }
     
+    // Not enough resources.
+    *success = can_satisfy;
+    if (can_satisfy) {
+        // Enough resources. Lock them all.
+        for (i = 0; i < RESOURCE_TYPE_COUNT; i++) {
+            log_info("Obtaining %d resources of type %d.", process->resx_cnt[i], i);
+            for (j = 0; j < process->resx_cnt[i]; j++) {
+                sem_wait(resources[i]->semaphore);
+            }
+        }
+    }
+        
+    sem_post(&resx_mutex);
     log_info("Exiting acquire_resources().");
     return SUCCESSFUL_EXEC;
 }
@@ -394,12 +438,16 @@ int acquire_resources(process_t* process, resource_t* resources[]) {
 int release_resources(process_t* process, resource_t* resources[]) {
     log_info("Entering release_resources().");
 
-        int i; for (i = 0; i < RESOURCE_TYPE_COUNT; i++) {
+    sem_wait(&resx_mutex);
+    
+    int i; for (i = 0; i < RESOURCE_TYPE_COUNT; i++) {
         int j; for (j = 0; j < process->resx_cnt[i]; j++) {
             log_info("Releasing resource of type %d.", i);
             sem_post(resources[i]->semaphore);
         }
     }
+    
+    sem_post(&resx_mutex);
     
     log_info("Exiting release_resources().");
     return SUCCESSFUL_EXEC;
