@@ -1,0 +1,17 @@
+gcc -Wall -c lib/logging.c -o lib/logging.o
+ar rvs lib/logging.a lib/logging.o
+
+gcc -Wall -c lib/collections.c -o lib/collections.o
+ar rvs lib/collections.a lib/collections.o
+
+gcc -Wall -c lib/tests.c -o lib/tests.o
+ar rvs lib/tests.a lib/tests.o
+
+gcc -Wall -c allocator.c -o allocator.o
+ar rvs allocator.a allocator.o
+
+gcc -Wall -c allocation_strategies.c -o allocation_strategies.o
+ar rvs allocation_strategies.a allocation_strategies.o
+
+gcc -Wall lib/collections_tests.c lib/logging.a lib/tests.a lib/collections.a -o lib/collections_tests
+gcc -Wall tester.c lib/logging.a lib/collections.a allocator.a allocation_strategies.a -o tester
