@@ -8,16 +8,16 @@
 // Constant for a successful execution.
 extern const int SUCCESSFUL_EXEC;
 
-// Constant for the error number when trying to dequeue an empty queue.
+// Error number when trying to dequeue an empty queue.
 extern const int EMPTY_QUEUE_ERRNO;
 
-// Constant for the error number when trying to access or modify an out of bound index.
+// Error number when trying to access or modify an out of bound index.
 extern const int OUT_OF_BOUNDS_ERRNO;
 
-// Constant for the error number when trying to modify a null linked list.
+// Error number when trying to modify a null linked list.
 extern const int NULL_LINKED_LIST_ERRNO;
 
-// Constant for the error number when trying to modify a null queue.
+// Error number when trying to modify a null queue.
 extern const int NULL_QUEUE_ERRNO;
 
 // Structure for a double linked list node. Every node points to the previous and next node.
@@ -30,18 +30,16 @@ struct node_t {
 };
 
 // Structure for a head-tail linked list.
-typedef struct linkedlist_t linkedlist_t;
-struct linkedlist_t {
+typedef struct linkedlist_t {
 	node_t* head;
 	node_t* tail;
     int length;
-};
+} linkedlist_t;
 
 // Structure for a head-tail queue.
-typedef struct queue_t queue_t;
-struct queue_t {
+typedef struct queue_t {
 	linkedlist_t* llist;
-};
+} queue_t;
 
 /// <summary>
 /// Initializes an linked list.

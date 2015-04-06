@@ -37,7 +37,7 @@ void flog_format(FILE* stream, const unsigned int level, const char *file, int l
 
     // Get the formatted message for the event.
     char fmessage[LOG_BUFFER_SIZE];
-        get_fmessage(fmessage, level, file, line, func, format, args);
+	get_fmessage(fmessage, level, file, line, func, format, args);
 
     // Print the message in the stream.
     fputs(fmessage, stream);
@@ -98,7 +98,7 @@ void get_fmessage(char* fmessage, const unsigned int level, const char *file, in
     
     // Format the header of the log.
     int len;
-    len = sprintf(fmessage, " %-7s  %s  %-50s  ",
+    len = sprintf(fmessage, " %-7s | %s | %-50.50s | ",
         get_level_string(level),
         nowstr,
         location);

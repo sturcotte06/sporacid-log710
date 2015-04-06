@@ -28,7 +28,7 @@ int linkedlist_init(linkedlist_t* linkedlist) {
 /// <param name="element">The element to add.</param>
 /// <returns>Value of SUCCESSFUL_EXEC if successful.</returns>
 int linkedlist_add(linkedlist_t* linkedlist, unsigned int index, void* element) {
-    log_debug("Entering linkedlist_add() at index %d.", index);    
+    log_debug("Entering linkedlist_add() at index %d. Length: %d.", index, linkedlist->length);    
     if (linkedlist == NULL) {
         // Linked list cannot be null.
         return NULL_LINKED_LIST_ERRNO;
@@ -45,7 +45,7 @@ int linkedlist_add(linkedlist_t* linkedlist, unsigned int index, void* element) 
 
     int i;
     node_t *pnode = NULL, *nnode = NULL;
-    if (index < (linkedlist->length / 2)) {
+    if (index <= (linkedlist->length / 2)) {
         // Inserting into first half. Start from head.
         // Find the node before which we need to insert.
         nnode = linkedlist->head;
@@ -54,6 +54,7 @@ int linkedlist_add(linkedlist_t* linkedlist, unsigned int index, void* element) 
             pnode = nnode;
             nnode = nnode->next;
         }
+		log_trace("Add into first half.");
     } else {
         // Inserting into second half. Start from tail.
         // Find the node after which we need to insert.
@@ -65,6 +66,7 @@ int linkedlist_add(linkedlist_t* linkedlist, unsigned int index, void* element) 
             nnode = pnode;
             pnode = pnode->previous;
         }
+		log_trace("Add into second half.");
     }
         
     // Set the next and previous of the new node.
@@ -74,16 +76,20 @@ int linkedlist_add(linkedlist_t* linkedlist, unsigned int index, void* element) 
     // Update all links. Set new head and tail if applicable.
     if (pnode != NULL) {
         pnode->next = cnode;
+		log_trace("Previous node is NULL.");
     } else {
         linkedlist->head = cnode;
+		log_trace("Previous node is not NULL, current node is new head.");
     }
     
     if (nnode != NULL) {
         // Next node exists, current node is not the last node.
         nnode->previous = cnode;
+		log_trace("Next node is NULL.");
     } else {
         // Next node does not exist, current node was the last node.
         linkedlist->tail = cnode;
+		log_trace("Next node is not NULL, current node is new tail.");
     }
     
     linkedlist->length++;    

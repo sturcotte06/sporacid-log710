@@ -1,14 +1,15 @@
 #ifndef MALLOC_ALLOCATOR_H
 #define MALLOC_ALLOCATOR_H
 
+#include "../lib/collections.h"
 #include "commons.h"
 #include "strategies.h"
 
-// Constant for a successful execution.
-extern const int SUCCESSFUL_EXEC;
-
-// Constant for the error number for illegal arguments.
-extern const int ILLEGAL_ARGUMENTS_ERRNO;
+// Structure for the options of the allocator.
+typedef struct allocator_options_t {
+	mem_address_t address_space_first_address;
+	sz_t address_space_size;
+} allocator_options_t;
 
 // The linked list of all free blocks.
 extern linkedlist_t* free_block_list;
@@ -17,8 +18,15 @@ extern linkedlist_t* free_block_list;
 /// Initializes the allocator.
 /// </summary>
 /// <param name="strategy">Function pointer for memory allocation strategy to use.</param>
+/// <param name="options">Options for the allocator.</param>
 /// <returns>The state code.</returns>
-int init_allocator(mem_allocation_strategy_t strategy);
+int init_allocator(mem_allocation_strategy_t strategy, allocator_options_t* options);
+
+/// <summary>
+/// Destroys the allocator.
+/// </summary>
+/// <returns>The state code.</returns>
+int destroy_allocator();
 
 /// <summary>
 /// Allocates a memory block of at least size bytes.
@@ -79,5 +87,12 @@ int mem_count_free_block_smaller_than(sz_t* size, unsigned int* count);
 /// <param name="flag">The out argument for whether it is allocated.</param>
 /// <returns>The state code.</returns>
 int mem_is_allocated(ptr_t* pointer, unsigned int* flag);
+
+/// <summary>
+/// Merges adjacent nodes of the current node if pointer are contiguous.
+/// </summary>
+/// <param name="current">The current pointer node in the linked list.</param>
+/// <returns>The state code.</returns>
+int mem_merge_contiguous(unsigned int i_current, node_t* current);
 
 #endif

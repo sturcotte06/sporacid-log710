@@ -1,12 +1,6 @@
 #ifndef TESTER_H
 #define TESTER_H
 
-// Constant for a successful execution.
-extern const int SUCCESSFUL_EXEC;
-
-// Constant for the error number for illegal arguments.
-extern const int ILLEGAL_ARGUMENTS_ERRNO;
-
 /// <summary>
 /// Logs the current state of the memory.
 /// </summary>
