@@ -1,8 +1,8 @@
 #ifndef MALLOC_ALLOCATOR_H
 #define MALLOC_ALLOCATOR_H
 
-#include "malloc/commons.h"
-#include "malloc/strategies.h"
+#include "commons.h"
+#include "strategies.h"
 
 // Constant for a successful execution.
 extern const int SUCCESSFUL_EXEC;
@@ -18,7 +18,7 @@ extern linkedlist_t* free_block_list;
 /// </summary>
 /// <param name="strategy">Function pointer for memory allocation strategy to use.</param>
 /// <returns>The state code.</returns>
-int init_allocator(mem_allocation_strategy_t* strategy);
+int init_allocator(mem_allocation_strategy_t strategy);
 
 /// <summary>
 /// Allocates a memory block of at least size bytes.

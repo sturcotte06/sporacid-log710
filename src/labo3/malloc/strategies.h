@@ -1,11 +1,11 @@
 #ifndef MALLOC_STRATEGIES_H
 #define MALLOC_STRATEGIES_H
 
-#include "lib/collections.h"
-#include "malloc/commons.h"
+#include "../lib/collections.h"
+#include "commons.h"
 
 // Function pointer for a memory allocation strategy.
-typedef int (*mem_allocation_strategy_t)(linkedlist_t*, ptr_t*);
+typedef int (*mem_allocation_strategy_t)(linkedlist_t* free_block_list, ptr_t* pointer);
 
 /// <summary>
 /// Allocates a block of memory into the pointer argument from the list of free blocks using the first fit strategy.

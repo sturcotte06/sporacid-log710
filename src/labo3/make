@@ -7,11 +7,11 @@ ar rvs lib/collections.a lib/collections.o
 gcc -Wall -c lib/tests.c -o lib/tests.o
 ar rvs lib/tests.a lib/tests.o
 
-gcc -Wall -c allocator.c -o allocator.o
-ar rvs allocator.a allocator.o
+gcc -Wall -c malloc/allocator.c -o malloc/allocator.o
+ar rvs malloc/allocator.a malloc/allocator.o
 
-gcc -Wall -c allocation_strategies.c -o allocation_strategies.o
-ar rvs allocation_strategies.a allocation_strategies.o
+gcc -Wall -c malloc/strategies.c -o malloc/strategies.o
+ar rvs malloc/strategies.a malloc/strategies.o
 
 gcc -Wall lib/collections_tests.c lib/logging.a lib/tests.a lib/collections.a -o lib/collections_tests
-gcc -Wall tester.c lib/logging.a lib/collections.a allocator.a allocation_strategies.a -o tester
+gcc -Wall tester.c lib/logging.a lib/collections.a malloc/allocator.a malloc/strategies.a -o tester

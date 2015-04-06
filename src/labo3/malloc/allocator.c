@@ -1,11 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
 #include <errno.h>
 
-#include "lib/logging.h"
+#include "../lib/logging.h"
 #include "allocator.h"
 
 #define true 1
@@ -14,9 +13,10 @@
 /// <summary>
 /// Initializes the allocator.
 /// </summary>
+/// <param name="strategy">Function pointer for memory allocation strategy to use.</param>
 /// <returns>The state code.</returns>
-int init_allocator() {
-    log_debug("Entering init_allocator().");
+int init_allocator(mem_allocation_strategy_t strategy) {
+	log_debug("Entering init_allocator().");
     log_debug("Exiting init_allocator().");
     return SUCCESSFUL_EXEC;
 }
