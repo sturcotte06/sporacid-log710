@@ -23,7 +23,7 @@ const char* LEVEL_STRINGS[LEVEL_COUNT] = { "Trace", "Debug", "Info", "Warning", 
 /// <param name="format">The format string of the message.</param>
 /// <param name="...">The variable number of arguments for the format.</param>
 void flog_format(FILE* stream, const unsigned int level, const char *file, int line, const char *func, const char* format, ...) {
-    if (level < loglevel) {
+    if (level < log_level) {
         return; // This message does not need to be logged.
     }
 
@@ -59,7 +59,7 @@ void flog_format(FILE* stream, const unsigned int level, const char *file, int l
 /// <param name="format">The format string of the message.</param>
 /// <param name="args">The variable number of arguments for the format.</param>
 void vflog_format(FILE* stream, const unsigned int level, const char *file, int line, const char *func, const char* format, va_list args) {
-    if (level < loglevel) {
+    if (level < log_level) {
         return; // This message does not need to be logged.
     }
 

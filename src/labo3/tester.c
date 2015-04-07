@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <errno.h>
+#include <math.h>
 
 #include "lib/logging.h"
 #include "lib/collections.h"
@@ -13,12 +14,18 @@
 #include "malloc/allocator.h"
 #include "tester.h"
 
+#define true 1
+#define false 0
 #define LARGE_BUFFER_SIZE 1024
 #define SMALL_BUFFER_SIZE 128
 #define SMALL_BLOCK 64
+#define ADDRESS_SPACE_FIRST_ADDRESS 0
+#define ADDRESS_SPACE_SIZE 5000
+#define MAXIMUM_ALLOC 1000
+#define ALLOCATE_TO_FREE_RATIO 3
 
 // Set the logging level to whatever we need for debugging purposes.
-unsigned int loglevel = INFO_LVL;
+unsigned int log_level = INFO_LVL;
 
 // Constant for a successful execution.
 const int SUCCESSFUL_EXEC = 0;
@@ -48,55 +55,94 @@ const int COLLECTIONS_ERRNO = 7;
 /// Starts the memory allocation tests.
 /// </summary>
 int main (void) {
-	int result;
-	allocator_options_t options = { .address_space_first_address = 0, .address_space_size = 5000 };
-	result = init_allocator(&mem_allocation_strategy_first_fit, &options);
+	int result, i = 0, j = 0, k = 0;
+	srand(time(NULL));
+
+	// Initialize the allocator.
+	ptr_t** pointer_buffer = calloc(LARGE_BUFFER_SIZE, sizeof(ptr_t*));
+	allocator_options_t options = { 
+		.address_space_first_address = ADDRESS_SPACE_FIRST_ADDRESS, 
+		.address_space_size = ADDRESS_SPACE_SIZE 
+	};
+	result = init_allocator(&mem_allocation_strategy_next_fit, &options);
 	if (result != SUCCESSFUL_EXEC) {
-		log_error("Allocater could not be initialized. init_allocator() returned %d.", result);
+		log_error("Allocator could not be initialized. init_allocator() returned %d.", result);
 		exit(result);
 	}
-
+	
 	// Log the initial state of the memory.
 	log_mem_state(INFO_LVL);
 	log_mem_parameters(INFO_LVL);
 
 	// Allocate until first out of memory error.
-	ptr_t pointer_buffer[LARGE_BUFFER_SIZE];
-	int i;
-	for (i = 0;; i++) {
-		ptr_t pointer;
-		sz_t size = (((i + 43) * 4373 / 63 * 21) % 999) + 1;
+	int is_oom = false;
+	while (!is_oom) {
+		// Allocate n pointers for one free.
+		for (j = 0; j < ALLOCATE_TO_FREE_RATIO; j++) {
+			int pointer_index = (i * ALLOCATE_TO_FREE_RATIO) + j;
+			pointer_buffer[pointer_index] = malloc(sizeof(ptr_t));
+			sz_t size = ((pointer_index + 43) * 4373 / 63 * 21) % (MAXIMUM_ALLOC - 1) + 1;
+			result = mem_allocate(&size, pointer_buffer[pointer_index]);
 
-		int result = mem_allocate(&size, &pointer);
-		if (result != SUCCESSFUL_EXEC) {
-			log_error("Memory could not be allocated. mem_allocate() returned %d.", result);
-			break;
+			if (result == OUT_OF_MEMORY_ERRNO) {
+				log_error("Memory could not be allocated because the allocator is out of memory.", result);
+				is_oom = true;
+				break;
+			} else if (result != SUCCESSFUL_EXEC) {
+				log_error("Memory could not be allocated. mem_allocate() returned %d.", result);
+				exit(result);
+			} else {
+				log_info("Memory allocated: [%lu, %u]", pointer_buffer[pointer_index]->address, pointer_buffer[pointer_index]->size);
+				log_mem_state(INFO_LVL);
+				log_mem_parameters(INFO_LVL);
+			}
 		}
 
-		pointer_buffer[i] = pointer;
-		log_info("Memory allocated: [%lu, %u]", pointer.address, pointer.size);
+		// Free one to create some fragmentation.
+		int random_index = (rand() % (i * ALLOCATE_TO_FREE_RATIO + j)) + i;
+		ptr_t* random_pointer = pointer_buffer[random_index];
+		if (random_pointer != NULL && random_pointer->is_allocated) {
+			log_info("Random index: %d, Random pointer: [%lu, %u].", random_index, random_pointer->address, random_pointer->size);
+			int result = mem_free(random_pointer);
+			if (result != SUCCESSFUL_EXEC) {
+				log_error("Memory could not be freed. mem_free() returned %d.", result);
+			}
+			
+			pointer_buffer[random_index] = NULL;
+			free(random_pointer);
+		}
+
 		log_mem_state(INFO_LVL);
 		log_mem_parameters(INFO_LVL);
+		if (!is_oom) i++;
 	}
 
-	loglevel = TRACE_LVL;
-	// Deallocate evrything.
-	int j;
-	while (j < i) {
-		int result = mem_free(&pointer_buffer[j]);
+	// Deallocate everything.
+	i = (i * ALLOCATE_TO_FREE_RATIO) + j;
+	while (k < i) {
+		ptr_t* pointer = pointer_buffer[k];
+		if (pointer == NULL) {
+			k++;
+			continue;
+		}
+
+		int result = mem_free(pointer);
 		if (result != SUCCESSFUL_EXEC) {
 			log_error("Memory could not be freed. mem_free() returned %d.", result);
+			continue;
 		}
+
+		pointer_buffer[k] = NULL;
+		free(pointer);
 
 		log_info("Memory freed.");
 		log_mem_state(INFO_LVL);
 		log_mem_parameters(INFO_LVL);
-		j++;
+		k++;
 	}
 
-	// Log the current memory parameters.
-	log_mem_parameters(INFO_LVL);
-
+	destroy_allocator();
+	free (pointer_buffer);
 	exit(SUCCESSFUL_EXEC);
 }
 

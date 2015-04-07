@@ -33,7 +33,7 @@
 
 // The log level of the application. 
 // All logs of this level or above will be logged.
-extern unsigned int loglevel;
+extern unsigned int log_level;
 
 /// <summary>
 /// Logs an event to a stream.

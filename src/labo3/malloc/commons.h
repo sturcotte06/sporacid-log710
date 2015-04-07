@@ -23,6 +23,7 @@ typedef unsigned int sz_t;
 typedef struct ptr_t {
     mem_address_t address;
     sz_t size;
+	unsigned int is_allocated;
 } ptr_t;
 
 #endif

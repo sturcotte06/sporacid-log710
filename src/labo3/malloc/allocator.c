@@ -95,8 +95,10 @@ int mem_allocate(sz_t* size, ptr_t* pointer) {
 
 	// Call the allocation strategy.
 	pointer->size = *size;
+	pointer->is_allocated = false;
 	int result = allocation_strategy(free_block_list, pointer);
 	if (result == SUCCESSFUL_EXEC) {
+		pointer->is_allocated = true;
 		allocated_block_count++;
 		log_debug("Exiting mem_allocate(). Address value: %lu.", pointer->address);
 	}
@@ -133,34 +135,15 @@ int mem_free(ptr_t* pointer) {
 	}
 
 	// Add the pointer to the linked list at the given position.
-	linkedlist_add(free_block_list, i_current, pointer);
+	pointer->is_allocated = false;
+	ptr_t* new_pointer = malloc(sizeof(ptr_t*));
+	*new_pointer = *pointer;
+	linkedlist_add(free_block_list, i_current, new_pointer);
 
 	// Merge contigous memory from the inserted node (which is the node before next node).
 	mem_merge_contiguous(i_current, next->previous);
-	
-	// ptr_t* previous_pointer = current->previous != NULL ? current->previous->element : NULL;
-	// log_trace("current_pointer: [%lu, %u]", current_pointer->address, current_pointer->size);
-	// log_trace("previous_pointer: [%lu, %u]", 
-	// 	previous_pointer != NULL ? previous_pointer->address : 0, 
-	// 	previous_pointer != NULL ? previous_pointer->size : 0);
-	// 
-	// // Check if the pointer would contiguous with its previous pointer.
-	// if (previous_pointer != NULL && (previous_pointer->address + previous_pointer->size == pointer->address)) {
-	// 	// Contiguous: append size to the current pointer.
-	// 	previous_pointer->size += pointer->size;
-	// 
-	// } 
-	// // Check if the pointer would be contiguous with its next pointer.
-	// if (pointer->address + pointer->size == current_pointer->address) {
-	// 	current_pointer->address -= pointer->size;
-	// 	current_pointer->size += pointer->size;
-	// }	
-	// // Non contiguous: insert pointer before current pointer.
-	// else {
-	// 	linkedlist_add(free_block_list, i_block, pointer);
-	// }
-
 	allocated_block_count--;
+
     log_debug("Exiting mem_free().");
     return SUCCESSFUL_EXEC;
 }
