@@ -19,8 +19,6 @@
 #define LARGE_BUFFER_SIZE 1024
 #define SMALL_BUFFER_SIZE 128
 #define SMALL_BLOCK 64
-#define ADDRESS_SPACE_FIRST_ADDRESS 0
-#define ADDRESS_SPACE_SIZE 5000
 #define MAXIMUM_ALLOC 1000
 #define ALLOCATE_TO_FREE_RATIO 3
 
@@ -54,17 +52,24 @@ const int COLLECTIONS_ERRNO = 7;
 /// <summary>
 /// Starts the memory allocation tests.
 /// </summary>
-int main (void) {
-	int result, i = 0, j = 0, k = 0;
+int main (int argc, char* argv[]) {
+	unsigned int result, i = 0, j = 0, flag = false;
 	srand(time(NULL));
 
+	// Parse the arguments.
+	tester_options_t options;
+	result = parse_args(argc, argv, &options);
+	if (result != SUCCESSFUL_EXEC) {
+		exit(result);
+	}
+
+	// Initialize the list into which we add alocated pointers.
+	linkedlist_t allocated_pointer_list;
+	linkedlist_init(&allocated_pointer_list);
+
 	// Initialize the allocator.
-	ptr_t** pointer_buffer = calloc(LARGE_BUFFER_SIZE, sizeof(ptr_t*));
-	allocator_options_t options = { 
-		.address_space_first_address = ADDRESS_SPACE_FIRST_ADDRESS, 
-		.address_space_size = ADDRESS_SPACE_SIZE 
-	};
-	result = init_allocator(&mem_allocation_strategy_next_fit, &options);
+	allocator_options_t allocator_options = { .address_space_first_address = options.address_space_first_address, .address_space_size = options.address_space_size };
+	result = init_allocator(options.allocation_strategy, &allocator_options);
 	if (result != SUCCESSFUL_EXEC) {
 		log_error("Allocator could not be initialized. init_allocator() returned %d.", result);
 		exit(result);
@@ -79,71 +84,172 @@ int main (void) {
 	while (!is_oom) {
 		// Allocate n pointers for one free.
 		for (j = 0; j < ALLOCATE_TO_FREE_RATIO; j++) {
+			// Allocate one pointer of semi random size.
 			int pointer_index = (i * ALLOCATE_TO_FREE_RATIO) + j;
-			pointer_buffer[pointer_index] = malloc(sizeof(ptr_t));
+			ptr_t* pointer = malloc(sizeof(ptr_t));
 			sz_t size = ((pointer_index + 43) * 4373 / 63 * 21) % (MAXIMUM_ALLOC - 1) + 1;
-			result = mem_allocate(&size, pointer_buffer[pointer_index]);
 
+			// Allocate it and act on result.
+			result = mem_allocate(&size, pointer);
 			if (result == OUT_OF_MEMORY_ERRNO) {
 				log_error("Memory could not be allocated because the allocator is out of memory.", result);
 				is_oom = true;
+				free(pointer);
 				break;
 			} else if (result != SUCCESSFUL_EXEC) {
 				log_error("Memory could not be allocated. mem_allocate() returned %d.", result);
 				exit(result);
 			} else {
-				log_info("Memory allocated: [%lu, %u]", pointer_buffer[pointer_index]->address, pointer_buffer[pointer_index]->size);
+				linkedlist_add(&allocated_pointer_list, 0, pointer);
+				mem_is_allocated(&pointer->address, &flag);
+				if (flag) {
+					log_info("Memory was allocated: [%lu, %u]", pointer->address, pointer->size);
+				} else {
+					log_warn("Memory was allocated by mem_allocate() ([%lu, %u]) but flagged as unallocated by mem_is_allocated(). Might be a bug.", pointer->address, pointer->size);
+				}
 				log_mem_state(INFO_LVL);
 				log_mem_parameters(INFO_LVL);
 			}
 		}
 
 		// Free one to create some fragmentation.
-		int random_index = (rand() % (i * ALLOCATE_TO_FREE_RATIO + j)) + i;
-		ptr_t* random_pointer = pointer_buffer[random_index];
-		if (random_pointer != NULL && random_pointer->is_allocated) {
-			log_info("Random index: %d, Random pointer: [%lu, %u].", random_index, random_pointer->address, random_pointer->size);
-			int result = mem_free(random_pointer);
-			if (result != SUCCESSFUL_EXEC) {
-				log_error("Memory could not be freed. mem_free() returned %d.", result);
+		void* element;
+		int random_index = rand() % allocated_pointer_list.length;
+		linkedlist_get(&allocated_pointer_list, random_index, &element);
+
+		ptr_t* random_pointer = element;
+		log_info("Random index: %d, Random pointer: [%lu, %u].", random_index, random_pointer->address, random_pointer->size);
+		linkedlist_remove(&allocated_pointer_list, random_index);
+
+		int result = mem_free(random_pointer);
+		if (result != SUCCESSFUL_EXEC) {
+			log_error("Memory could not be freed. mem_free() returned %d.", result);
+		} else {
+			mem_is_allocated(&random_pointer->address, &flag);
+			if (!flag) {
+				log_info("Memory was freed");
+			} else {
+				log_warn("Memory was freed by mem_free() but flagged as allocated by mem_is_allocated(). Might be a bug.");
 			}
-			
-			pointer_buffer[random_index] = NULL;
-			free(random_pointer);
 		}
 
+		free(random_pointer);
 		log_mem_state(INFO_LVL);
 		log_mem_parameters(INFO_LVL);
-		if (!is_oom) i++;
+		i++;
 	}
 
 	// Deallocate everything.
-	i = (i * ALLOCATE_TO_FREE_RATIO) + j;
-	while (k < i) {
-		ptr_t* pointer = pointer_buffer[k];
-		if (pointer == NULL) {
-			k++;
-			continue;
-		}
-
-		int result = mem_free(pointer);
+	node_t* current = allocated_pointer_list.head;
+	while (current != NULL) {
+		ptr_t* current_pointer = current->element;
+		result = mem_free(current_pointer);
 		if (result != SUCCESSFUL_EXEC) {
 			log_error("Memory could not be freed. mem_free() returned %d.", result);
-			continue;
+		} else {
+			mem_is_allocated(&current_pointer->address, &flag);
+			if (!flag) {
+				log_info("Memory was freed");
+			} else {
+				log_warn("Memory was freed by mem_free() but flagged as allocated by mem_is_allocated(). Might be a bug.");
+			}
+
+			log_mem_state(INFO_LVL);
+			log_mem_parameters(INFO_LVL);
 		}
 
-		pointer_buffer[k] = NULL;
-		free(pointer);
+		free(current_pointer);
+		current = current->next;
+	}
+	
+	linkedlist_destroy(&allocated_pointer_list);
+	destroy_allocator();
+	exit(SUCCESSFUL_EXEC);
+}
 
-		log_info("Memory freed.");
-		log_mem_state(INFO_LVL);
-		log_mem_parameters(INFO_LVL);
-		k++;
+/// <summary>
+/// Parse the command line arguments into an options structure.
+/// </summary>
+/// <param name="argc">The number of arguments in argv.</param>
+/// <param name="argv">The argument vector.</param>
+/// <param name="options">The options to parse into.</param>
+/// <returns>The state code.</returns>
+int parse_args(const int argc, char* argv[], tester_options_t* options) {
+	log_debug("Entering parse_args().");
+	if (options == NULL || argv == NULL) {
+		return ILLEGAL_ARGUMENTS_ERRNO;
 	}
 
-	destroy_allocator();
-	free (pointer_buffer);
-	exit(SUCCESSFUL_EXEC);
+	if (argc < 5) {
+		log_fatal("Incorrect number of arguments. Correct usage is: tester -size {address space size:int} -strategy {strategy:string} [-first-address {address space first address:int} --verbose]");
+		return ILLEGAL_ARGUMENTS_ERRNO;
+	}
+
+	int first_address_set = false, size_set = false, strategy_set = false;
+	int i_arg = 1;
+	while (i_arg < argc) {
+		char* option_name = argv[i_arg];
+		if (option_name[0] == '-') {
+			if (option_name[1] == '-') {
+                // Flag options handlers.
+				if (strcmp(option_name, "--verbose") == 0) {
+					log_level = TRACE_LVL;
+				}
+
+                i_arg++;
+            } else {
+				// Normal options handlers.
+				char* option_value = argv[i_arg + 1];
+				if (strcmp(option_name, "-first-address") == 0) {
+					options->address_space_first_address = atoi(option_value);
+					first_address_set = true;
+				} else if (strcmp(option_name, "-size") == 0) {
+					options->address_space_size = atoi(option_value);
+					size_set = true;
+				} else if (strcmp(option_name, "-strategy") == 0) {
+					if (strcmp(option_value, "first") == 0) {
+						options->allocation_strategy = &mem_allocation_strategy_first_fit;
+						strategy_set = true;
+					} else if (strcmp(option_value, "best") == 0) {
+						options->allocation_strategy = &mem_allocation_strategy_best_fit;
+						strategy_set = true;
+					} else if (strcmp(option_value, "worst") == 0) {
+						options->allocation_strategy = &mem_allocation_strategy_worst_fit;
+						strategy_set = true;
+					} else if (strcmp(option_value, "next") == 0) {
+						options->allocation_strategy = &mem_allocation_strategy_next_fit;
+						strategy_set = true;
+					} else {
+						log_fatal("Possible values for -strategy option are first, best, worst or next.");
+						return ILLEGAL_ARGUMENTS_ERRNO;
+					}
+				}
+
+				i_arg += 2;
+			}
+		} else {
+			// Option scheme not recognized, skip option.
+			log_info("Option %s is not recognized.", option_name);
+			i_arg++;
+		}
+	}
+
+	if (!first_address_set) {
+		options->address_space_first_address = 0;
+	}
+
+	if (!size_set) {
+		log_fatal("-size option is required.");
+		return ILLEGAL_ARGUMENTS_ERRNO;
+	}
+
+	if (!strategy_set) {
+		log_fatal("-strategy option is required.");
+		return ILLEGAL_ARGUMENTS_ERRNO;
+	}
+
+	log_debug("Exiting parse_args().");
+	return SUCCESSFUL_EXEC;
 }
 
 /// <summary>

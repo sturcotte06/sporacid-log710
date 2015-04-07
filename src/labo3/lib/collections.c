@@ -54,7 +54,6 @@ int linkedlist_add(linkedlist_t* linkedlist, unsigned int index, void* element) 
             pnode = nnode;
             nnode = nnode->next;
         }
-		log_trace("Add into first half.");
     } else {
         // Inserting into second half. Start from tail.
         // Find the node after which we need to insert.
@@ -66,7 +65,6 @@ int linkedlist_add(linkedlist_t* linkedlist, unsigned int index, void* element) 
             nnode = pnode;
             pnode = pnode->previous;
         }
-		log_trace("Add into second half.");
     }
         
     // Set the next and previous of the new node.
@@ -76,20 +74,20 @@ int linkedlist_add(linkedlist_t* linkedlist, unsigned int index, void* element) 
     // Update all links. Set new head and tail if applicable.
     if (pnode != NULL) {
         pnode->next = cnode;
-		log_trace("Previous node is NULL.");
+		log_trace("Previous node is not NULL.");
     } else {
         linkedlist->head = cnode;
-		log_trace("Previous node is not NULL, current node is new head.");
+		log_trace("Previous node is NULL, current node is new head.");
     }
     
     if (nnode != NULL) {
         // Next node exists, current node is not the last node.
         nnode->previous = cnode;
-		log_trace("Next node is NULL.");
+		log_trace("Next node is not NULL.");
     } else {
         // Next node does not exist, current node was the last node.
         linkedlist->tail = cnode;
-		log_trace("Next node is not NULL, current node is new tail.");
+		log_trace("Next node is NULL, current node is new tail.");
     }
     
     linkedlist->length++;    

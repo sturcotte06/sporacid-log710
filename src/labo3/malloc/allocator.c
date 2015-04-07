@@ -136,7 +136,7 @@ int mem_free(ptr_t* pointer) {
 
 	// Add the pointer to the linked list at the given position.
 	pointer->is_allocated = false;
-	ptr_t* new_pointer = malloc(sizeof(ptr_t*));
+	ptr_t* new_pointer = malloc (sizeof(ptr_t));
 	*new_pointer = *pointer;
 	linkedlist_add(free_block_list, i_current, new_pointer);
 
@@ -264,31 +264,33 @@ int mem_count_free_block_smaller_than(sz_t* size, unsigned int* count) {
 }
 
 /// <summary>
-/// Puts whether the given memory pointer is allocated into the flag argument.
+/// Puts whether the given address is allocated into the flag argument.
 /// </summary>
-/// <param name="pointer">The pointer to check.</param>
+/// <param name="address">The address to check.</param>
 /// <param name="flag">The out argument for whether it is allocated.</param>
 /// <returns>The state code.</returns>
-int mem_is_allocated(ptr_t* pointer, unsigned int* flag) {
-    log_debug("Entering mem_is_allocated(). Address value: %lu.", pointer->address);
+int mem_is_allocated(mem_address_t* address, unsigned int* flag) {
+    log_debug("Entering mem_is_allocated(). Address value: %lu.", *address);
+	*flag = false;
 
-	if (pointer < options->address_space_first_address || pointer > options->address_space_first_address + options->address_space_size) {
-		*flag = false;
-	} else {
+	// check if address is within the bound. If not, flag as false.
+	if ((*address >= allocation_options->address_space_first_address) && 
+		(*address <= allocation_options->address_space_first_address + allocation_options->address_space_size)) {
+		*flag = true;
+
 		node_t* current = free_block_list->head;
 		ptr_t* current_pointer;
 		while (current != NULL) {
 			current_pointer = current->element;
-			if (current_pointer->size < *size) {
-				*count = *count + 1;
+			if (*address > current_pointer->address && *address < (current_pointer->address + current_pointer->size)) {
+				*flag = false;
+				break;
 			}
 
 			// Move to the next node.
 			current = current->next;
 		}
-
 	}
-
 
     log_debug("Exiting mem_is_allocated(). Flag value: %s.", *flag ? "true" : "false");
     return SUCCESSFUL_EXEC;
@@ -313,6 +315,7 @@ int mem_merge_contiguous(unsigned int i_current, node_t* current) {
 		// Contiguous with previous node: append size to the previous pointer.
 		previous_pointer->size += current_pointer->size;
 
+		free(current_pointer);
 		linkedlist_remove(free_block_list, i_current);
 		mem_merge_contiguous(i_current - 1, previous);
 	}
@@ -322,6 +325,7 @@ int mem_merge_contiguous(unsigned int i_current, node_t* current) {
 		next_pointer->address -= current_pointer->size;
 		next_pointer->size += current_pointer->size;
 
+		free(current_pointer);
 		linkedlist_remove(free_block_list, i_current);
 		mem_merge_contiguous(i_current + 1, next);
 	}

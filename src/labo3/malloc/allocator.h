@@ -81,12 +81,12 @@ int mem_greatest_free_block(sz_t* size);
 int mem_count_free_block_smaller_than(sz_t* size, unsigned int* count);
 
 /// <summary>
-/// Puts whether the given memory pointer is allocated into the flag argument.
+/// Puts whether the given address is allocated into the flag argument.
 /// </summary>
-/// <param name="pointer">The pointer to check.</param>
+/// <param name="address">The address to check.</param>
 /// <param name="flag">The out argument for whether it is allocated.</param>
 /// <returns>The state code.</returns>
-int mem_is_allocated(ptr_t* pointer, unsigned int* flag);
+int mem_is_allocated(mem_address_t* address, unsigned int* flag);
 
 /// <summary>
 /// Merges adjacent nodes of the current node if pointer are contiguous.

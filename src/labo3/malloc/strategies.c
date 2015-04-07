@@ -13,7 +13,7 @@
 #define false 0
 
 // Current node in the next fit algorithm.
-node_t* next_fit_current;
+node_t* next_fit_current = NULL;
 
 // Current index of current node in next fit algorithm.
 int i_next_fit_current;
@@ -51,11 +51,13 @@ int mem_allocation_strategy_first_fit (linkedlist_t* free_block_list, ptr_t* poi
 
 	// If the found block has more memory than required, split it.
 	if (current_pointer->size > pointer->size) {
+		log_trace("Size matched. current_pointer->address: %lu.", current_pointer->address);
 		pointer->address = current_pointer->address;
 		current_pointer->address += pointer->size;
 		current_pointer->size -= pointer->size;
 	} else {
 		// Size matched perfectly. Remove the block from the free block and return it.
+		log_trace("Size matched perfectly. current_pointer->address: %lu.", current_pointer->address);
 		pointer->address = current_pointer->address;
 		linkedlist_remove(free_block_list, i_current);
 		free(current_pointer);
@@ -81,7 +83,7 @@ int mem_allocation_strategy_best_fit (linkedlist_t* free_block_list, ptr_t* poin
 	int i_current = 0, i_best_fit = 0;
 	node_t* current = free_block_list->head;
 	ptr_t* current_pointer;
-	ptr_t* best_fit_pointer;
+	ptr_t* best_fit_pointer = NULL;
 	while (current != NULL) {
 		current_pointer = current->element;
 		if ((best_fit_pointer == NULL && pointer->size <= current_pointer->size) || 
@@ -90,7 +92,6 @@ int mem_allocation_strategy_best_fit (linkedlist_t* free_block_list, ptr_t* poin
 			best_fit_pointer = current_pointer;
 			i_best_fit = i_current;
 		}
-
 		// Move to the next node.
 		current = current->next;
 		i_current++;
@@ -132,7 +133,7 @@ int mem_allocation_strategy_worst_fit (linkedlist_t* free_block_list, ptr_t* poi
 	int i_current = 0, i_worst_fit = 0;
 	node_t* current = free_block_list->head;
 	ptr_t* current_pointer;
-	ptr_t* worst_fit_pointer;
+	ptr_t* worst_fit_pointer = NULL;
 	while (current != NULL) {
 		current_pointer = current->element;
 		if ((worst_fit_pointer == NULL && pointer->size <= current_pointer->size) ||
@@ -211,22 +212,7 @@ int mem_allocation_strategy_next_fit (linkedlist_t* free_block_list, ptr_t* poin
 		return OUT_OF_MEMORY_ERRNO;
 	}
 
-	// int i_current = i_next_fit_current + 1;
-	// node_t* current = next_fit_current->next;
-	// ptr_t* current_pointer;
-	// while (i_current != i_next_fit_current) {
-	// 	if (current == NULL) {
-	// 
-	// 	}
-	// }
-
-
 	// If the found block has more memory than required, split it.
-	log_info("pointer: [%lu, %u]", pointer->address, pointer->size);
-	log_info("current_pointer: [%lu, %u]", current_pointer->address, current_pointer->size);
-
-	ptr_t* next_fit_current_pointer = next_fit_current->element;
-	log_info("next_fit_current_pointer: [%lu, %u]", next_fit_current_pointer->address, next_fit_current_pointer->size);
 	if (current_pointer->size > pointer->size) {
 		pointer->address = current_pointer->address;
 		current_pointer->address += pointer->size;
