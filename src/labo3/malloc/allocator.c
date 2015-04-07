@@ -271,6 +271,25 @@ int mem_count_free_block_smaller_than(sz_t* size, unsigned int* count) {
 /// <returns>The state code.</returns>
 int mem_is_allocated(ptr_t* pointer, unsigned int* flag) {
     log_debug("Entering mem_is_allocated(). Address value: %lu.", pointer->address);
+
+	if (pointer < options->address_space_first_address || pointer > options->address_space_first_address + options->address_space_size) {
+		*flag = false;
+	} else {
+		node_t* current = free_block_list->head;
+		ptr_t* current_pointer;
+		while (current != NULL) {
+			current_pointer = current->element;
+			if (current_pointer->size < *size) {
+				*count = *count + 1;
+			}
+
+			// Move to the next node.
+			current = current->next;
+		}
+
+	}
+
+
     log_debug("Exiting mem_is_allocated(). Flag value: %s.", *flag ? "true" : "false");
     return SUCCESSFUL_EXEC;
 }
