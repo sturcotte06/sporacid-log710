@@ -35,6 +35,9 @@
 // All logs of this level or above will be logged.
 extern unsigned int log_level;
 
+// The buffer size to use for logging.
+extern const unsigned int LOG_BUFFER_SIZE;
+
 /// <summary>
 /// Logs an event to a stream.
 /// If the event level is lower than the application log level, the event won't be logged.

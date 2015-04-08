@@ -5,7 +5,6 @@
 #include <time.h>
 #include "logging.h"
 
-#define LOG_BUFFER_SIZE 1024
 #define LEVEL_COUNT 6
 
 // Constants for logging levels associated strings.

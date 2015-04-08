@@ -9,6 +9,7 @@
 #include "collections_tests.h"
 
 unsigned int log_level = INFO_LVL;
+const unsigned int LOG_BUFFER_SIZE = 1024;
 
 const int TEST_SIZE = 100;
 const int SUCCESSFUL_EXEC = 0;

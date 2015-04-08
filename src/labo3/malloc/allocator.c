@@ -282,7 +282,7 @@ int mem_is_allocated(mem_address_t* address, unsigned int* flag) {
 		ptr_t* current_pointer;
 		while (current != NULL) {
 			current_pointer = current->element;
-			if (*address > current_pointer->address && *address < (current_pointer->address + current_pointer->size)) {
+			if (*address >= current_pointer->address && *address <= (current_pointer->address + current_pointer->size)) {
 				*flag = false;
 				break;
 			}

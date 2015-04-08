@@ -16,7 +16,7 @@
 
 #define true 1
 #define false 0
-#define LARGE_BUFFER_SIZE 1024
+#define LARGE_BUFFER_SIZE 4096
 #define SMALL_BUFFER_SIZE 128
 #define SMALL_BLOCK 64
 #define MAXIMUM_ALLOC 1000
@@ -24,6 +24,9 @@
 
 // Set the logging level to whatever we need for debugging purposes.
 unsigned int log_level = INFO_LVL;
+
+// The buffer size to use for logging.
+const unsigned int LOG_BUFFER_SIZE = LARGE_BUFFER_SIZE;
 
 // Constant for a successful execution.
 const int SUCCESSFUL_EXEC = 0;
@@ -53,7 +56,7 @@ const int COLLECTIONS_ERRNO = 7;
 /// Starts the memory allocation tests.
 /// </summary>
 int main (int argc, char* argv[]) {
-	unsigned int result, i = 0, j = 0, flag = false;
+	unsigned int result, is_allocated_flag = false;
 	srand(time(NULL));
 
 	// Parse the arguments.
@@ -80,12 +83,12 @@ int main (int argc, char* argv[]) {
 	log_mem_parameters(INFO_LVL);
 
 	// Allocate until first out of memory error.
-	int is_oom = false;
+	unsigned int is_oom = false, i_allocate = 0, j_allocate = 0;
 	while (!is_oom) {
 		// Allocate n pointers for one free.
-		for (j = 0; j < ALLOCATE_TO_FREE_RATIO; j++) {
+		for (j_allocate = 0; j_allocate < ALLOCATE_TO_FREE_RATIO; j_allocate++) {
 			// Allocate one pointer of semi random size.
-			int pointer_index = (i * ALLOCATE_TO_FREE_RATIO) + j;
+			int pointer_index = (i_allocate * ALLOCATE_TO_FREE_RATIO) + j_allocate;
 			ptr_t* pointer = malloc(sizeof(ptr_t));
 			sz_t size = ((pointer_index + 43) * 4373 / 63 * 21) % (MAXIMUM_ALLOC - 1) + 1;
 
@@ -101,18 +104,20 @@ int main (int argc, char* argv[]) {
 				exit(result);
 			} else {
 				linkedlist_add(&allocated_pointer_list, 0, pointer);
-				mem_is_allocated(&pointer->address, &flag);
-				if (flag) {
-					log_info("Memory was allocated: [%lu, %u]", pointer->address, pointer->size);
-				} else {
-					log_warn("Memory was allocated by mem_allocate() ([%lu, %u]) but flagged as unallocated by mem_is_allocated(). Might be a bug.", pointer->address, pointer->size);
-				}
+                
+                // Make sure the memory was allocated.
+				mem_is_allocated(&pointer->address, &is_allocated_flag);
+				if (is_allocated_flag) log_info("Memory was allocated: [%lu, %u]", pointer->address, pointer->size);
+                else log_warn("Memory was allocated by mem_allocate() ([%lu, %u]) but flagged as unallocated by mem_is_allocated(). Might be a bug.", 
+                    pointer->address, pointer->size);
+                    
+                // Log the state of the memory after allocation.
 				log_mem_state(INFO_LVL);
 				log_mem_parameters(INFO_LVL);
 			}
 		}
 
-		// Free one to create some fragmentation.
+		// Get some random pointer from allocated pointers.
 		void* element;
 		int random_index = rand() % allocated_pointer_list.length;
 		linkedlist_get(&allocated_pointer_list, random_index, &element);
@@ -121,39 +126,41 @@ int main (int argc, char* argv[]) {
 		log_info("Random index: %d, Random pointer: [%lu, %u].", random_index, random_pointer->address, random_pointer->size);
 		linkedlist_remove(&allocated_pointer_list, random_index);
 
+        // Free the random pointer to create some fragmentation.
 		int result = mem_free(random_pointer);
 		if (result != SUCCESSFUL_EXEC) {
 			log_error("Memory could not be freed. mem_free() returned %d.", result);
 		} else {
-			mem_is_allocated(&random_pointer->address, &flag);
-			if (!flag) {
-				log_info("Memory was freed");
-			} else {
-				log_warn("Memory was freed by mem_free() but flagged as allocated by mem_is_allocated(). Might be a bug.");
-			}
+            // Make sure the memory was deallocated.
+			mem_is_allocated(&random_pointer->address, &is_allocated_flag);
+			if (!is_allocated_flag) log_info("Memory was freed");
+            else log_warn("Memory was freed by mem_free() but flagged as allocated by mem_is_allocated(). Might be a bug.");
 		}
 
-		free(random_pointer);
+        // Log the state of the memory after deallocation.
 		log_mem_state(INFO_LVL);
 		log_mem_parameters(INFO_LVL);
-		i++;
+		free(random_pointer);
+        
+		i_allocate++;
 	}
 
-	// Deallocate everything.
+	// Deallocate all currently allocated pointers.
 	node_t* current = allocated_pointer_list.head;
 	while (current != NULL) {
 		ptr_t* current_pointer = current->element;
+        
+        // Try to deallocate the pointer.
 		result = mem_free(current_pointer);
 		if (result != SUCCESSFUL_EXEC) {
 			log_error("Memory could not be freed. mem_free() returned %d.", result);
 		} else {
-			mem_is_allocated(&current_pointer->address, &flag);
-			if (!flag) {
-				log_info("Memory was freed");
-			} else {
-				log_warn("Memory was freed by mem_free() but flagged as allocated by mem_is_allocated(). Might be a bug.");
-			}
+            // Make sure the memory was deallocated.
+			mem_is_allocated(&current_pointer->address, &is_allocated_flag);
+			if (!is_allocated_flag) log_info("Memory was freed");
+			else log_warn("Memory was freed by mem_free() but flagged as allocated by mem_is_allocated(). Might be a bug.");
 
+            // Log the state of the memory after deallocation.
 			log_mem_state(INFO_LVL);
 			log_mem_parameters(INFO_LVL);
 		}
@@ -258,7 +265,7 @@ int parse_args(const int argc, char* argv[], tester_options_t* options) {
 /// <param name="level">The logging level to use.</param>
 /// <returns>The state code.</returns>
 int log_mem_state(const int level) {
-	log_debug("Entering log_mem_state().");
+	log_debug("Entering log_mem_state()."); 
 	char mem_block_buffer[SMALL_BUFFER_SIZE];
 	char mem_state_buffer[LARGE_BUFFER_SIZE];
 	memset(&mem_state_buffer, 0, LARGE_BUFFER_SIZE);
