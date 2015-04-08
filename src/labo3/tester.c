@@ -122,7 +122,7 @@ int test_allocate_until_out_of_mem(linkedlist_t* allocated_pointer_list) {
 			// Allocate it and act on result.
 			result = mem_allocate(&size, pointer);
 			if (result == OUT_OF_MEMORY_ERRNO) {
-				log_error("Memory could not be allocated because the allocator is out of memory.", result);
+				log_info("Memory could not be allocated because the allocator is out of memory.", result);
 				is_oom = true;
 				free(pointer);
 				break;
