@@ -18,15 +18,15 @@
 #define false 0
 #define LARGE_BUFFER_SIZE 4096
 #define SMALL_BUFFER_SIZE 128
-#define SMALL_BLOCK 64
-#define MAXIMUM_ALLOC 1000
-#define ALLOCATE_TO_FREE_RATIO 3
+#define DEFAULT_SMALL_BLOCK_SIZE 64
+#define DEFAULT_MAXIMUM_ALLOC 1000
+#define DEFAULT_ALLOCATE_TO_FREE_RATIO 3
 
 // Set the logging level to whatever we need for debugging purposes.
 unsigned int log_level = INFO_LVL;
 
 // The buffer size to use for logging.
-const unsigned int LOG_BUFFER_SIZE = LARGE_BUFFER_SIZE;
+const unsigned int LOG_BUFFER_SIZE = 5*LARGE_BUFFER_SIZE;
 
 // Constant for a successful execution.
 const int SUCCESSFUL_EXEC = 0;
@@ -55,9 +55,6 @@ const int COLLECTIONS_ERRNO = 7;
 // The tester options activated currently.
 tester_options_t tester_options;
 
-// The size considered a small block.
-sz_t small_block_size;
-
 /// <summary>
 /// Starts the memory allocation tests.
 /// </summary>
@@ -71,13 +68,11 @@ int main (int argc, char* argv[]) {
 		exit(result);
 	}
 
-	if (tester_options.verbose) {
-		log_level = TRACE_LVL;
-	}
-
-	if (!tester_options.small_block_size) {
-		small_block_size = SMALL_BLOCK;
-	}
+	// Set default values if applicable.
+	if (tester_options.verbose) log_level = TRACE_LVL;
+	if (!tester_options.small_block_size) tester_options.small_block_size = DEFAULT_SMALL_BLOCK_SIZE;
+	if (!tester_options.max_alloc_size) tester_options.max_alloc_size = DEFAULT_MAXIMUM_ALLOC;
+	if (!tester_options.alloc_to_free_ratio) tester_options.alloc_to_free_ratio = DEFAULT_ALLOCATE_TO_FREE_RATIO;
 
 	// Initialize the list into which we add alocated pointers.
 	linkedlist_t allocated_pointer_list;
@@ -99,11 +94,11 @@ int main (int argc, char* argv[]) {
 	unsigned int is_oom = false, i_allocate = 0, j_allocate = 0;
 	while (!is_oom) {
 		// Allocate n pointers for one free.
-		for (j_allocate = 0; j_allocate < ALLOCATE_TO_FREE_RATIO; j_allocate++) {
+		for (j_allocate = 0; j_allocate < tester_options.alloc_to_free_ratio; j_allocate++) {
 			// Allocate one pointer of semi random size.
-			int pointer_index = (i_allocate * ALLOCATE_TO_FREE_RATIO) + j_allocate;
+			int pointer_index = (i_allocate * tester_options.alloc_to_free_ratio) + j_allocate;
 			ptr_t* pointer = malloc(sizeof(ptr_t));
-			sz_t size = ((pointer_index + 43) * 4373 / 63 * 21) % (MAXIMUM_ALLOC - 1) + 1;
+			sz_t size = ((pointer_index + 43) * 4373 / 63 * 21) % (tester_options.max_alloc_size - 1) + 1;
 
 			// Allocate it and act on result.
 			result = mem_allocate(&size, pointer);
@@ -235,6 +230,10 @@ int parse_args(const int argc, char* argv[], tester_options_t* options) {
 					size_set = true;
 				} else if (strcmp(option_name, "-small-block-size") == 0) {
 					options->small_block_size = atoi(option_value);
+				} else if (strcmp(option_name, "-alloc-to-free-ratio") == 0) {
+					options->alloc_to_free_ratio = atoi(option_value);
+				} else if (strcmp(option_name, "-max-allocation") == 0) {
+					options->max_alloc_size = atoi(option_value);
 				} else if (strcmp(option_name, "-strategy") == 0) {
 					if (strcmp(option_value, "first") == 0) {
 						options->allocation_strategy = &mem_allocation_strategy_first_fit;
@@ -293,11 +292,13 @@ int parse_args(const int argc, char* argv[], tester_options_t* options) {
 /// <returns>The state code.</returns>
 int sprint_help(char* buffer) {
 	strcat(buffer, "\n\tRequired Arguments\n");
-	strcat(buffer, "\t  -size {int} The address space size.\n");
+	strcat(buffer, "\t  -size {int > 0} The address space size.\n");
 	strcat(buffer, "\t  -strategy {string} The strategy to use. Values are first, best, worst, next.\n");
 	strcat(buffer, "\tOptional Arguments\n");
-	strcat(buffer, "\t  -first-address {string} The address space initial value.\n");
-	strcat(buffer, "\t  -small-block-size {int} The size of what is considered a small block.\n");
+	strcat(buffer, "\t  -first-address {int} The address space initial value.\n");
+	strcat(buffer, "\t  -small-block-size {int > 0} The size of what is considered a small block.\n");
+	strcat(buffer, "\t  -alloc-to-free-ratio {int > 0} How many allocation for a single free for the test.\n");
+	strcat(buffer, "\t  -max-allocation {int > 0} The maximum allocation for the test.\n");
 	strcat(buffer, "\t  --verbose {flag} Whether to log everything.\n");
 	return SUCCESSFUL_EXEC;
 }
@@ -320,7 +321,7 @@ int log_mem_state(const int level) {
 
 		// Concatenate state of current block.
 		sprintf(mem_block_buffer, "[%lu, %u] -> ", current_pointer->address, current_pointer->size);
-		strcat(mem_state_buffer, mem_block_buffer);
+		strncat(mem_state_buffer, mem_block_buffer, LARGE_BUFFER_SIZE - strlen(mem_state_buffer));
 
 		// Move to the next node.
 		current = current->next;
@@ -362,9 +363,8 @@ int log_mem_parameters(const int level) {
 	sprintf(mem_parameter_buffer, "\tGreatest block: %u\n", greatest_block);
 	strcat(mem_parameters_buffer, mem_parameter_buffer);
 
-	sz_t small_block_size = SMALL_BLOCK;
 	unsigned int small_blocks;
-	mem_count_free_block_smaller_than(&small_block_size, &small_blocks);
+	mem_count_free_block_smaller_than(&tester_options.small_block_size, &small_blocks);
 	sprintf(mem_parameter_buffer, "\tBlock smaller than %d: %u", tester_options.small_block_size, small_blocks);
 	strcat(mem_parameters_buffer, mem_parameter_buffer);
 

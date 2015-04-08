@@ -3,10 +3,12 @@
 
 // Structure for the options of the tester.
 typedef struct tester_options_t {
+	mem_allocation_strategy_t allocation_strategy;
 	mem_address_t address_space_first_address;
 	sz_t address_space_size;
-	mem_allocation_strategy_t allocation_strategy;
 	sz_t small_block_size;
+	sz_t max_alloc_size;
+	unsigned int alloc_to_free_ratio;
 	unsigned int verbose;
 } tester_options_t;
 
