@@ -59,7 +59,7 @@ tester_options_t tester_options;
 /// Starts the memory allocation tests.
 /// </summary>
 int main (int argc, char* argv[]) {
-	unsigned int result, is_allocated_flag = false;
+	unsigned int result;
 	srand(time(NULL));
 
 	// Parse the arguments.
@@ -90,8 +90,27 @@ int main (int argc, char* argv[]) {
 	log_mem_state(INFO_LVL);
 	log_mem_parameters(INFO_LVL);
 
+	// Allocate until the allocator run out of memory.
+	test_allocate_until_out_of_mem(&allocated_pointer_list);
+
+	// Deallocate evrything.
+	test_deallocate_all(&allocated_pointer_list);
+	
+	linkedlist_destroy(&allocated_pointer_list);
+	destroy_allocator();
+	exit(SUCCESSFUL_EXEC);
+}
+
+/// <summary>
+/// Allocates n pointers (defined by alloc_to_free_ratio option) then deallocates one random pointer until an out of memory error happens.
+/// </summary>
+/// <param name="allocated_pointer_list">The linked list of currently allocated pointers.</param>
+/// <returns>The state code.</returns>
+int test_allocate_until_out_of_mem(linkedlist_t* allocated_pointer_list) {
+	log_debug("Entering test_allocate_until_out_of_mem().");
+
 	// Allocate until first out of memory error.
-	unsigned int is_oom = false, i_allocate = 0, j_allocate = 0;
+	unsigned int is_oom = false, i_allocate = 0, j_allocate = 0, result, is_allocated_flag = false;
 	while (!is_oom) {
 		// Allocate n pointers for one free.
 		for (j_allocate = 0; j_allocate < tester_options.alloc_to_free_ratio; j_allocate++) {
@@ -109,9 +128,9 @@ int main (int argc, char* argv[]) {
 				break;
 			} else if (result != SUCCESSFUL_EXEC) {
 				log_error("Memory could not be allocated. mem_allocate() returned %d.", result);
-				exit(result);
+				return result;
 			} else {
-				linkedlist_add(&allocated_pointer_list, 0, pointer);
+				linkedlist_add(allocated_pointer_list, 0, pointer);
                 
                 // Make sure the memory was allocated.
 				mem_is_allocated(&pointer->address, &is_allocated_flag);
@@ -125,41 +144,69 @@ int main (int argc, char* argv[]) {
 			}
 		}
 
-		// Get some random pointer from allocated pointers.
-		void* element;
-		int random_index = rand() % allocated_pointer_list.length;
-		linkedlist_get(&allocated_pointer_list, random_index, &element);
-
-		ptr_t* random_pointer = element;
-		log_info("Random index: %d, Random pointer: [%lu, %u].", random_index, random_pointer->address, random_pointer->size);
-		linkedlist_remove(&allocated_pointer_list, random_index);
-
-        // Free the random pointer to create some fragmentation.
-		int result = mem_free(random_pointer);
-		if (result != SUCCESSFUL_EXEC) {
-			log_error("Memory could not be freed. mem_free() returned %d.", result);
-		} else {
-            // Make sure the memory was deallocated.
-			mem_is_allocated(&random_pointer->address, &is_allocated_flag);
-			if (!is_allocated_flag) log_info("Memory was freed");
-            else log_warn("Memory was freed by mem_free() but flagged as allocated by mem_is_allocated(). Might be a bug.");
-		}
-
-        // Log the state of the memory after deallocation.
-		log_mem_state(INFO_LVL);
-		log_mem_parameters(INFO_LVL);
-		free(random_pointer);
-        
+		// Deallocates one random pointer.
+		result = test_deallocate_random_pointer(allocated_pointer_list);
+        if (result != SUCCESSFUL_EXEC) return result;
 		i_allocate++;
 	}
+	
+	log_debug("Exiting test_allocate_until_out_of_mem().");
+	return SUCCESSFUL_EXEC;
+}
+
+/// <summary>
+/// Deallocates one random pointer within the given allocated pointer list.
+/// </summary>
+/// <param name="allocated_pointer_list">The linked list of currently allocated pointers.</param>
+/// <returns>The state code.</returns>
+int test_deallocate_random_pointer(linkedlist_t* allocated_pointer_list) {
+	log_debug("Entering test_deallocate_random_pointer().");
+	unsigned int is_allocated_flag = false;
+
+	// Get some random pointer from allocated pointers.
+	void* element;
+	int random_index = rand() % allocated_pointer_list->length;
+	linkedlist_get(allocated_pointer_list, random_index, &element);
+	ptr_t* random_pointer = element;
+	log_info("Random index: %d, Random pointer: [%lu, %u].", random_index, random_pointer->address, random_pointer->size);
+	linkedlist_remove(allocated_pointer_list, random_index);
+
+    // Free the random pointer to create some fragmentation.
+	int result = mem_free(random_pointer);
+	if (result != SUCCESSFUL_EXEC) {
+		log_error("Memory could not be freed. mem_free() returned %d.", result);
+	} else {
+        // Make sure the memory was deallocated.
+		mem_is_allocated(&random_pointer->address, &is_allocated_flag);
+		if (!is_allocated_flag) log_info("Memory was freed");
+        else log_warn("Memory was freed by mem_free() but flagged as allocated by mem_is_allocated(). Might be a bug.");
+	}
+
+    // Log the state of the memory after deallocation.
+	log_mem_state(INFO_LVL);
+	log_mem_parameters(INFO_LVL);
+	free(random_pointer);
+	
+	log_debug("Exiting test_deallocate_random_pointer().");
+	return SUCCESSFUL_EXEC;
+}
+
+/// <summary>
+/// Deallocates all pointers within the given allocated pointer list.
+/// </summary>
+/// <param name="allocated_pointer_list">The linked list of currently allocated pointers.</param>
+/// <returns>The state code.</returns>
+int test_deallocate_all(linkedlist_t* allocated_pointer_list) {
+	log_debug("Entering test_deallocate_all().");
+	unsigned int is_allocated_flag = false;
 
 	// Deallocate all currently allocated pointers.
-	node_t* current = allocated_pointer_list.head;
+	node_t* current = allocated_pointer_list->head;
 	while (current != NULL) {
 		ptr_t* current_pointer = current->element;
         
         // Try to deallocate the pointer.
-		result = mem_free(current_pointer);
+		int result = mem_free(current_pointer);
 		if (result != SUCCESSFUL_EXEC) {
 			log_error("Memory could not be freed. mem_free() returned %d.", result);
 		} else {
@@ -177,9 +224,8 @@ int main (int argc, char* argv[]) {
 		current = current->next;
 	}
 	
-	linkedlist_destroy(&allocated_pointer_list);
-	destroy_allocator();
-	exit(SUCCESSFUL_EXEC);
+	log_debug("Exiting test_deallocate_all().");
+	return SUCCESSFUL_EXEC;
 }
 
 /// <summary>

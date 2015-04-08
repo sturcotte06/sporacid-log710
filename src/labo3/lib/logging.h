@@ -85,4 +85,11 @@ void get_fmessage(char* fmessage, const unsigned int level, const char *file, in
 /// <returns>The string representation.</returns>
 const char* get_level_string(const unsigned int level);
 
+/// <summary>
+/// Gets the string representation of the colour for the level.
+/// </summary>
+/// <param name="level">The level of the event.</param>
+/// <returns>The string representation.</returns>
+const char* get_level_colour(const unsigned int level);
+
 #endif

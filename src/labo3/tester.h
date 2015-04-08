@@ -13,6 +13,27 @@ typedef struct tester_options_t {
 } tester_options_t;
 
 /// <summary>
+/// Allocates n pointers (defined by alloc_to_free_ratio option) then deallocates one random pointer until an out of memory error happens.
+/// </summary>
+/// <param name="allocated_pointer_list">The linked list of currently allocated pointers.</param>
+/// <returns>The state code.</returns>
+int test_allocate_until_out_of_mem(linkedlist_t* allocated_pointer_list);
+
+/// <summary>
+/// Deallocates one random pointer within the given allocated pointer list.
+/// </summary>
+/// <param name="allocated_pointer_list">The linked list of currently allocated pointers.</param>
+/// <returns>The state code.</returns>
+int test_deallocate_random_pointer(linkedlist_t* allocated_pointer_list);
+
+/// <summary>
+/// Deallocates all pointers within the given allocated pointer list.
+/// </summary>
+/// <param name="allocated_pointer_list">The linked list of currently allocated pointers.</param>
+/// <returns>The state code.</returns>
+int test_deallocate_all(linkedlist_t* allocated_pointer_list);
+
+/// <summary>
 /// Parse the command line arguments into an options structure.
 /// </summary>
 /// <param name="argc">The number of arguments in argv.</param>

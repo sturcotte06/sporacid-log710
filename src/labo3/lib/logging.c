@@ -6,9 +6,14 @@
 #include "logging.h"
 
 #define LEVEL_COUNT 6
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
 
 // Constants for logging levels associated strings.
 const char* LEVEL_STRINGS[LEVEL_COUNT] = { "Trace", "Debug", "Info", "Warning", "Error", "Fatal" };
+const char* LEVEL_COLOURS[LEVEL_COUNT] = { ANSI_COLOR_RESET, ANSI_COLOR_RESET, ANSI_COLOR_GREEN, ANSI_COLOR_YELLOW, ANSI_COLOR_RED, ANSI_COLOR_RED };
 
 /// <summary>
 /// Logs an event to a stream.
@@ -97,7 +102,8 @@ void get_fmessage(char* fmessage, const unsigned int level, const char *file, in
     
     // Format the header of the log.
     int len;
-    len = sprintf(fmessage, " %-7s | %s | %-50.50s | ",
+    len = sprintf(fmessage, " %s%-7s | %s | %-50.50s | ",
+		get_level_colour(level),
         get_level_string(level),
         nowstr,
         location);
@@ -112,7 +118,7 @@ void get_fmessage(char* fmessage, const unsigned int level, const char *file, in
     fmessage += len;
 
     // Add a carriage by default.
-    sprintf(fmessage, "\n");
+    sprintf(fmessage, "%s\n", ANSI_COLOR_RESET);
 }
 
 /// <summary>
@@ -123,4 +129,14 @@ void get_fmessage(char* fmessage, const unsigned int level, const char *file, in
 const char* get_level_string(const unsigned int level) {
     // All levels above the maximum level will be considered at the maximum level.
     return LEVEL_STRINGS[level > LEVEL_COUNT - 1 ? LEVEL_COUNT - 1 : level];
+}
+
+/// <summary>
+/// Gets the string representation of the colour for the level.
+/// </summary>
+/// <param name="level">The level of the event.</param>
+/// <returns>The string representation.</returns>
+const char* get_level_colour(const unsigned int level) {
+    // All levels above the maximum level will be considered at the maximum level.
+    return LEVEL_COLOURS[level > LEVEL_COUNT - 1 ? LEVEL_COUNT - 1 : level];
 }
