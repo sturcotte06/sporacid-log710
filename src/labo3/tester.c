@@ -52,6 +52,12 @@ const int NULL_QUEUE_ERRNO = 6;
 // Error number for a generic error with collection handling.
 const int COLLECTIONS_ERRNO = 7;
 
+// The tester options activated currently.
+tester_options_t tester_options;
+
+// The size considered a small block.
+sz_t small_block_size;
+
 /// <summary>
 /// Starts the memory allocation tests.
 /// </summary>
@@ -60,10 +66,17 @@ int main (int argc, char* argv[]) {
 	srand(time(NULL));
 
 	// Parse the arguments.
-	tester_options_t options;
-	result = parse_args(argc, argv, &options);
+	result = parse_args(argc, argv, &tester_options);
 	if (result != SUCCESSFUL_EXEC) {
 		exit(result);
+	}
+
+	if (tester_options.verbose) {
+		log_level = TRACE_LVL;
+	}
+
+	if (!tester_options.small_block_size) {
+		small_block_size = SMALL_BLOCK;
 	}
 
 	// Initialize the list into which we add alocated pointers.
@@ -71,8 +84,8 @@ int main (int argc, char* argv[]) {
 	linkedlist_init(&allocated_pointer_list);
 
 	// Initialize the allocator.
-	allocator_options_t allocator_options = { .address_space_first_address = options.address_space_first_address, .address_space_size = options.address_space_size };
-	result = init_allocator(options.allocation_strategy, &allocator_options);
+	allocator_options_t allocator_options = { .address_space_first_address = tester_options.address_space_first_address, .address_space_size = tester_options.address_space_size };
+	result = init_allocator(tester_options.allocation_strategy, &allocator_options);
 	if (result != SUCCESSFUL_EXEC) {
 		log_error("Allocator could not be initialized. init_allocator() returned %d.", result);
 		exit(result);
@@ -183,24 +196,31 @@ int main (int argc, char* argv[]) {
 /// <returns>The state code.</returns>
 int parse_args(const int argc, char* argv[], tester_options_t* options) {
 	log_debug("Entering parse_args().");
+
+	char help_buffer[LARGE_BUFFER_SIZE];
+	memset(help_buffer, 0, LARGE_BUFFER_SIZE);
+
 	if (options == NULL || argv == NULL) {
+		sprint_help(help_buffer);
+		log_fatal(help_buffer);
 		return ILLEGAL_ARGUMENTS_ERRNO;
 	}
 
 	if (argc < 5) {
-		log_fatal("Incorrect number of arguments. Correct usage is: tester -size {address space size:int} -strategy {strategy:string} [-first-address {address space first address:int} --verbose]");
+		sprint_help(help_buffer);
+		log_fatal(help_buffer);
 		return ILLEGAL_ARGUMENTS_ERRNO;
 	}
-
-	int first_address_set = false, size_set = false, strategy_set = false;
+	
 	int i_arg = 1;
+	int first_address_set = false, size_set = false, strategy_set = false;
 	while (i_arg < argc) {
 		char* option_name = argv[i_arg];
 		if (option_name[0] == '-') {
 			if (option_name[1] == '-') {
                 // Flag options handlers.
 				if (strcmp(option_name, "--verbose") == 0) {
-					log_level = TRACE_LVL;
+					options->verbose = true;
 				}
 
                 i_arg++;
@@ -213,6 +233,8 @@ int parse_args(const int argc, char* argv[], tester_options_t* options) {
 				} else if (strcmp(option_name, "-size") == 0) {
 					options->address_space_size = atoi(option_value);
 					size_set = true;
+				} else if (strcmp(option_name, "-small-block-size") == 0) {
+					options->small_block_size = atoi(option_value);
 				} else if (strcmp(option_name, "-strategy") == 0) {
 					if (strcmp(option_value, "first") == 0) {
 						options->allocation_strategy = &mem_allocation_strategy_first_fit;
@@ -227,7 +249,8 @@ int parse_args(const int argc, char* argv[], tester_options_t* options) {
 						options->allocation_strategy = &mem_allocation_strategy_next_fit;
 						strategy_set = true;
 					} else {
-						log_fatal("Possible values for -strategy option are first, best, worst or next.");
+						sprint_help(help_buffer);
+						log_fatal(help_buffer);
 						return ILLEGAL_ARGUMENTS_ERRNO;
 					}
 				}
@@ -236,7 +259,7 @@ int parse_args(const int argc, char* argv[], tester_options_t* options) {
 			}
 		} else {
 			// Option scheme not recognized, skip option.
-			log_info("Option %s is not recognized.", option_name);
+			log_warn("Option %s is not recognized.", option_name);
 			i_arg++;
 		}
 	}
@@ -247,15 +270,35 @@ int parse_args(const int argc, char* argv[], tester_options_t* options) {
 
 	if (!size_set) {
 		log_fatal("-size option is required.");
+		sprint_help(help_buffer);
+		log_fatal(help_buffer);
 		return ILLEGAL_ARGUMENTS_ERRNO;
 	}
 
 	if (!strategy_set) {
 		log_fatal("-strategy option is required.");
+		sprint_help(help_buffer);
+		log_fatal(help_buffer);
 		return ILLEGAL_ARGUMENTS_ERRNO;
 	}
 
 	log_debug("Exiting parse_args().");
+	return SUCCESSFUL_EXEC;
+}
+
+/// <summary>
+/// Prints the help in the given buffer.
+/// </summary>
+/// <param name="buffer">The buffer to use.</param>
+/// <returns>The state code.</returns>
+int sprint_help(char* buffer) {
+	strcat(buffer, "\n\tRequired Arguments\n");
+	strcat(buffer, "\t  -size {int} The address space size.\n");
+	strcat(buffer, "\t  -strategy {string} The strategy to use. Values are first, best, worst, next.\n");
+	strcat(buffer, "\tOptional Arguments\n");
+	strcat(buffer, "\t  -first-address {string} The address space initial value.\n");
+	strcat(buffer, "\t  -small-block-size {int} The size of what is considered a small block.\n");
+	strcat(buffer, "\t  --verbose {flag} Whether to log everything.\n");
 	return SUCCESSFUL_EXEC;
 }
 
@@ -322,7 +365,7 @@ int log_mem_parameters(const int level) {
 	sz_t small_block_size = SMALL_BLOCK;
 	unsigned int small_blocks;
 	mem_count_free_block_smaller_than(&small_block_size, &small_blocks);
-	sprintf(mem_parameter_buffer, "\tBlock smaller than %d: %u", SMALL_BLOCK, small_blocks);
+	sprintf(mem_parameter_buffer, "\tBlock smaller than %d: %u", tester_options.small_block_size, small_blocks);
 	strcat(mem_parameters_buffer, mem_parameter_buffer);
 
 	log_format(level, "Memory parameters: \n%s", mem_parameters_buffer);

@@ -6,6 +6,8 @@ typedef struct tester_options_t {
 	mem_address_t address_space_first_address;
 	sz_t address_space_size;
 	mem_allocation_strategy_t allocation_strategy;
+	sz_t small_block_size;
+	unsigned int verbose;
 } tester_options_t;
 
 /// <summary>
@@ -16,6 +18,13 @@ typedef struct tester_options_t {
 /// <param name="options">The options to parse into.</param>
 /// <returns>The state code.</returns>
 int parse_args(const int argc, char* argv[], tester_options_t* options);
+
+/// <summary>
+/// Prints the help in the given buffer.
+/// </summary>
+/// <param name="buffer">The buffer to use.</param>
+/// <returns>The state code.</returns>
+int sprint_help(char* buffer);
 
 /// <summary>
 /// Logs the current state of the memory.
