@@ -29,12 +29,12 @@ linkedlist_t* free_block_list;
 /// <param name="strategy">Function pointer for memory allocation strategy to use.</param>
 /// <param name="options">Options for the allocator.</param>
 /// <returns>The state code.</returns>
-int init_allocator(mem_allocation_strategy_t strategy, allocator_options_t* options) {
+int mem_allocator_init(mem_allocation_strategy_t strategy, allocator_options_t* options) {
 	if (strategy == NULL || options == NULL) {
 		return ILLEGAL_ARGUMENTS_ERRNO;
 	}
 
-	log_debug("Entering init_allocator(). First address: %lu, Adress space size: %u.", 
+	log_debug("Entering mem_allocator_init(). First address: %lu, Adress space size: %u.", 
 		options->address_space_first_address, options->address_space_size);
 
 	// Initialize all globals.
@@ -53,7 +53,7 @@ int init_allocator(mem_allocation_strategy_t strategy, allocator_options_t* opti
 		return COLLECTIONS_ERRNO;
 	}
 	
-    log_debug("Exiting init_allocator().");
+    log_debug("Exiting mem_allocator_init().");
     return SUCCESSFUL_EXEC;
 }
 
@@ -61,8 +61,8 @@ int init_allocator(mem_allocation_strategy_t strategy, allocator_options_t* opti
 /// Destroys the allocator.
 /// </summary>
 /// <returns>The state code.</returns>
-int destroy_allocator() {
-	log_debug("destroy_allocator init_allocator().");
+int mem_allocator_destroy() {
+	log_debug("Entering mem_allocator_destroy().");
 
 	// Free all pointers.
 	node_t* current = free_block_list->head;
@@ -76,7 +76,7 @@ int destroy_allocator() {
 	linkedlist_destroy(free_block_list);
 	free(free_block_list);
 
-    log_debug("Exiting destroy_allocator().");
+    log_debug("Exiting mem_allocator_destroy().");
     return SUCCESSFUL_EXEC;
 }
 
@@ -87,14 +87,14 @@ int destroy_allocator() {
 /// <param name="size">The size of the allocation.</param>
 /// <param name="pointer">The pointer into which to allocate.</param>
 /// <returns>The state code.</returns>
-int mem_allocate(sz_t* size, ptr_t* pointer) {
-    log_debug("Entering mem_allocate(). Size value: %u.", *size);
-	if (size == NULL || pointer == NULL) {
+int mem_allocate(sz_t size, ptr_t* pointer) {
+    log_debug("Entering mem_allocate(). Size value: %u.", size);
+	if (!size || pointer == NULL) {
 		return ILLEGAL_ARGUMENTS_ERRNO;
 	}
 
 	// Call the allocation strategy.
-	pointer->size = *size;
+	pointer->size = size;
 	pointer->is_allocated = false;
 	int result = allocation_strategy(free_block_list, pointer);
 	if (result == SUCCESSFUL_EXEC) {
@@ -240,9 +240,9 @@ int mem_greatest_free_block(sz_t* size) {
 /// <param name="size">The maximum size that can be considered small.</param>
 /// <param name="count">The out argument for the count.</param>
 /// <returns>The state code.</returns>
-int mem_count_free_block_smaller_than(sz_t* size, unsigned int* count) {
-    log_debug("Entering mem_count_free_block_smaller_than(). Size value: %u.", *size);
-	if (size == NULL || count == NULL) {
+int mem_count_free_block_smaller_than(sz_t size, unsigned int* count) {
+    log_debug("Entering mem_count_free_block_smaller_than(). Size value: %u.", size);
+	if (!size || count == NULL) {
 		return ILLEGAL_ARGUMENTS_ERRNO;
 	}
 
@@ -251,7 +251,7 @@ int mem_count_free_block_smaller_than(sz_t* size, unsigned int* count) {
 	ptr_t* current_pointer;
 	while (current != NULL) {
 		current_pointer = current->element;
-		if (current_pointer->size < *size) {
+		if (current_pointer->size < size) {
 			*count = *count + 1;
 		}
 
@@ -269,20 +269,20 @@ int mem_count_free_block_smaller_than(sz_t* size, unsigned int* count) {
 /// <param name="address">The address to check.</param>
 /// <param name="flag">The out argument for whether it is allocated.</param>
 /// <returns>The state code.</returns>
-int mem_is_allocated(mem_address_t* address, unsigned int* flag) {
-    log_debug("Entering mem_is_allocated(). Address value: %lu.", *address);
+int mem_is_allocated(mem_address_t address, unsigned int* flag) {
+    log_debug("Entering mem_is_allocated(). Address value: %lu.", address);
 	*flag = false;
 
 	// check if address is within the bound. If not, flag as false.
-	if ((*address >= allocation_options->address_space_first_address) && 
-		(*address <= allocation_options->address_space_first_address + allocation_options->address_space_size)) {
+	if ((address >= allocation_options->address_space_first_address) && 
+		(address <= allocation_options->address_space_first_address + allocation_options->address_space_size)) {
 		*flag = true;
 
 		node_t* current = free_block_list->head;
 		ptr_t* current_pointer;
 		while (current != NULL) {
 			current_pointer = current->element;
-			if (*address >= current_pointer->address && *address <= (current_pointer->address + current_pointer->size)) {
+			if (address >= current_pointer->address && address <= (current_pointer->address + current_pointer->size)) {
 				*flag = false;
 				break;
 			}

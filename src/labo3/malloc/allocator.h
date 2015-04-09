@@ -20,13 +20,13 @@ extern linkedlist_t* free_block_list;
 /// <param name="strategy">Function pointer for memory allocation strategy to use.</param>
 /// <param name="options">Options for the allocator.</param>
 /// <returns>The state code.</returns>
-int init_allocator(mem_allocation_strategy_t strategy, allocator_options_t* options);
+int mem_allocator_init(mem_allocation_strategy_t strategy, allocator_options_t* options);
 
 /// <summary>
 /// Destroys the allocator.
 /// </summary>
 /// <returns>The state code.</returns>
-int destroy_allocator();
+int mem_allocator_destroy();
 
 /// <summary>
 /// Allocates a memory block of at least size bytes.
@@ -35,7 +35,7 @@ int destroy_allocator();
 /// <param name="size">The size of the allocation.</param>
 /// <param name="pointer">The pointer into which to allocate.</param>
 /// <returns>The state code.</returns>
-int mem_allocate(sz_t* size, ptr_t* pointer);
+int mem_allocate(sz_t size, ptr_t* pointer);
 
 /// <summary>
 /// Frees a memory pointer and put the memory back into the allocator.
@@ -78,7 +78,7 @@ int mem_greatest_free_block(sz_t* size);
 /// <param name="size">The maximum size that can be considered small.</param>
 /// <param name="count">The out argument for the count.</param>
 /// <returns>The state code.</returns>
-int mem_count_free_block_smaller_than(sz_t* size, unsigned int* count);
+int mem_count_free_block_smaller_than(sz_t size, unsigned int* count);
 
 /// <summary>
 /// Puts whether the given address is allocated into the flag argument.
@@ -86,7 +86,7 @@ int mem_count_free_block_smaller_than(sz_t* size, unsigned int* count);
 /// <param name="address">The address to check.</param>
 /// <param name="flag">The out argument for whether it is allocated.</param>
 /// <returns>The state code.</returns>
-int mem_is_allocated(mem_address_t* address, unsigned int* flag);
+int mem_is_allocated(mem_address_t address, unsigned int* flag);
 
 /// <summary>
 /// Merges adjacent nodes of the current node if pointer are contiguous.

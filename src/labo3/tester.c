@@ -80,7 +80,7 @@ int main (int argc, char* argv[]) {
 
 	// Initialize the allocator.
 	allocator_options_t allocator_options = { .address_space_first_address = tester_options.address_space_first_address, .address_space_size = tester_options.address_space_size };
-	result = init_allocator(tester_options.allocation_strategy, &allocator_options);
+	result = mem_allocator_init(tester_options.allocation_strategy, &allocator_options);
 	if (result != SUCCESSFUL_EXEC) {
 		log_error("Allocator could not be initialized. init_allocator() returned %d.", result);
 		exit(result);
@@ -97,7 +97,7 @@ int main (int argc, char* argv[]) {
 	test_deallocate_all(&allocated_pointer_list);
 	
 	linkedlist_destroy(&allocated_pointer_list);
-	destroy_allocator();
+	mem_allocator_destroy();
 	exit(SUCCESSFUL_EXEC);
 }
 
@@ -120,7 +120,7 @@ int test_allocate_until_out_of_mem(linkedlist_t* allocated_pointer_list) {
 			sz_t size = ((pointer_index + 43) * 4373 / 63 * 21) % (tester_options.max_alloc_size - 1) + 1;
 
 			// Allocate it and act on result.
-			result = mem_allocate(&size, pointer);
+			result = mem_allocate(size, pointer);
 			if (result == OUT_OF_MEMORY_ERRNO) {
 				log_info("Memory could not be allocated because the allocator is out of memory.", result);
 				is_oom = true;
@@ -133,7 +133,7 @@ int test_allocate_until_out_of_mem(linkedlist_t* allocated_pointer_list) {
 				linkedlist_add(allocated_pointer_list, 0, pointer);
                 
                 // Make sure the memory was allocated.
-				mem_is_allocated(&pointer->address, &is_allocated_flag);
+				mem_is_allocated(pointer->address, &is_allocated_flag);
 				if (is_allocated_flag) log_info("Memory was allocated: [%lu, %u]", pointer->address, pointer->size);
                 else log_warn("Memory was allocated by mem_allocate() ([%lu, %u]) but flagged as unallocated by mem_is_allocated(). Might be a bug.", 
                     pointer->address, pointer->size);
@@ -177,8 +177,8 @@ int test_deallocate_random_pointer(linkedlist_t* allocated_pointer_list) {
 		log_error("Memory could not be freed. mem_free() returned %d.", result);
 	} else {
         // Make sure the memory was deallocated.
-		mem_is_allocated(&random_pointer->address, &is_allocated_flag);
-		if (!is_allocated_flag) log_info("Memory was freed");
+		mem_is_allocated(random_pointer->address, &is_allocated_flag);
+		if (!is_allocated_flag) log_info("Memory pointer [%lu, %u] was freed.", random_pointer->address, random_pointer->size);
         else log_warn("Memory was freed by mem_free() but flagged as allocated by mem_is_allocated(). Might be a bug.");
 	}
 
@@ -211,8 +211,8 @@ int test_deallocate_all(linkedlist_t* allocated_pointer_list) {
 			log_error("Memory could not be freed. mem_free() returned %d.", result);
 		} else {
             // Make sure the memory was deallocated.
-			mem_is_allocated(&current_pointer->address, &is_allocated_flag);
-			if (!is_allocated_flag) log_info("Memory was freed");
+			mem_is_allocated(current_pointer->address, &is_allocated_flag);
+			if (!is_allocated_flag) log_info("Memory pointer [%lu, %u] was freed.", current_pointer->address, current_pointer->size);
 			else log_warn("Memory was freed by mem_free() but flagged as allocated by mem_is_allocated(). Might be a bug.");
 
             // Log the state of the memory after deallocation.
@@ -247,11 +247,11 @@ int parse_args(const int argc, char* argv[], tester_options_t* options) {
 		return ILLEGAL_ARGUMENTS_ERRNO;
 	}
 
-	if (argc < 5) {
-		sprint_help(help_buffer);
-		log_fatal(help_buffer);
-		return ILLEGAL_ARGUMENTS_ERRNO;
-	}
+	// if (argc < 5) {
+	// 	sprint_help(help_buffer);
+	// 	log_fatal(help_buffer);
+	// 	return ILLEGAL_ARGUMENTS_ERRNO;
+	// }
 	
 	int i_arg = 1;
 	int first_address_set = false, size_set = false, strategy_set = false;
@@ -268,7 +268,11 @@ int parse_args(const int argc, char* argv[], tester_options_t* options) {
             } else {
 				// Normal options handlers.
 				char* option_value = argv[i_arg + 1];
-				if (strcmp(option_name, "-first-address") == 0) {
+                if (strcmp(option_name, "-help") == 0) {
+                    sprint_help(help_buffer);
+                    log_info(help_buffer);
+                    exit(SUCCESSFUL_EXEC);
+				} else if (strcmp(option_name, "-first-address") == 0) {
 					options->address_space_first_address = atoi(option_value);
 					first_address_set = true;
 				} else if (strcmp(option_name, "-size") == 0) {
@@ -355,11 +359,16 @@ int sprint_help(char* buffer) {
 /// <param name="level">The logging level to use.</param>
 /// <returns>The state code.</returns>
 int log_mem_state(const int level) {
-	log_debug("Entering log_mem_state()."); 
+	log_debug("Entering log_mem_state().");
 	char mem_block_buffer[SMALL_BUFFER_SIZE];
 	char mem_state_buffer[LARGE_BUFFER_SIZE];
 	memset(&mem_state_buffer, 0, LARGE_BUFFER_SIZE);
+	strcat(mem_state_buffer, "  ");
 
+    // int columns = atoi(getenv("COLUMNS"));
+    // log_fatal("%d", columns);
+    
+    int mem_state_length, mem_state_line_length;
 	node_t* current = free_block_list->head;
 	ptr_t* current_pointer;
 	while (current != NULL) {
@@ -368,12 +377,12 @@ int log_mem_state(const int level) {
 		// Concatenate state of current block.
 		sprintf(mem_block_buffer, "[%lu, %u] -> ", current_pointer->address, current_pointer->size);
 		strncat(mem_state_buffer, mem_block_buffer, LARGE_BUFFER_SIZE - strlen(mem_state_buffer));
-
+        
 		// Move to the next node.
 		current = current->next;
 	}
 
-	log_format(level, "Memory state: %s", mem_state_buffer);
+	log_format(level, "\n\tMemory state [address, size]\n\t%s", mem_state_buffer);
     log_debug("Exiting log_mem_state().");
 	return SUCCESSFUL_EXEC;
 }
@@ -391,30 +400,30 @@ int log_mem_parameters(const int level) {
 
 	unsigned int allocated_blocks;
 	mem_count_allocated_block(&allocated_blocks);
-	sprintf(mem_parameter_buffer, "\tAllocated Blocks: %u\n", allocated_blocks);
+	sprintf(mem_parameter_buffer, "\t  Allocated Blocks: %u\n", allocated_blocks);
 	strcat(mem_parameters_buffer, mem_parameter_buffer);
 
 	unsigned int free_blocks;
 	mem_count_free_block(&free_blocks);
-	sprintf(mem_parameter_buffer, "\tFree Blocks: %u\n", free_blocks);
+	sprintf(mem_parameter_buffer, "\t  Free Blocks: %u\n", free_blocks);
 	strcat(mem_parameters_buffer, mem_parameter_buffer);
 
 	unsigned long free_memory;
 	mem_count_free(&free_memory);
-	sprintf(mem_parameter_buffer, "\tFree memory: %lu\n", free_memory);
+	sprintf(mem_parameter_buffer, "\t  Free memory: %lu\n", free_memory);
 	strcat(mem_parameters_buffer, mem_parameter_buffer);
 
 	sz_t greatest_block;
 	mem_greatest_free_block(&greatest_block);
-	sprintf(mem_parameter_buffer, "\tGreatest block: %u\n", greatest_block);
+	sprintf(mem_parameter_buffer, "\t  Greatest block: %u\n", greatest_block);
 	strcat(mem_parameters_buffer, mem_parameter_buffer);
 
 	unsigned int small_blocks;
-	mem_count_free_block_smaller_than(&tester_options.small_block_size, &small_blocks);
-	sprintf(mem_parameter_buffer, "\tBlock smaller than %d: %u", tester_options.small_block_size, small_blocks);
+	mem_count_free_block_smaller_than(tester_options.small_block_size, &small_blocks);
+	sprintf(mem_parameter_buffer, "\t  Block smaller than %d: %u", tester_options.small_block_size, small_blocks);
 	strcat(mem_parameters_buffer, mem_parameter_buffer);
 
-	log_format(level, "Memory parameters: \n%s", mem_parameters_buffer);
+	log_format(level, "\n\tMemory parameters\n%s", mem_parameters_buffer);
 	log_debug("Exiting log_mem_parameters().");
 	return SUCCESSFUL_EXEC;
 }
