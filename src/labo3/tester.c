@@ -365,10 +365,6 @@ int log_mem_state(const int level) {
 	memset(&mem_state_buffer, 0, LARGE_BUFFER_SIZE);
 	strcat(mem_state_buffer, "  ");
 
-    // int columns = atoi(getenv("COLUMNS"));
-    // log_fatal("%d", columns);
-    
-    int mem_state_length, mem_state_line_length;
 	node_t* current = free_block_list->head;
 	ptr_t* current_pointer;
 	while (current != NULL) {
