@@ -1,0 +1,1 @@
+gcc -pthread -Wall calculate_pi.c ../lib/logging/logging.o ../lib/collections/linkedlist.o ../lib/collections/queue.o ../lib/collections/synchronized/blocking_queue.o ../lib/threading/commons.o ../lib/threading/future.o ../lib/threading/threadpool.o -lm -o calculate_pi

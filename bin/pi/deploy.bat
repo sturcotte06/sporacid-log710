@@ -2,8 +2,8 @@ SET username=xx
 SET password=xx
 SET hostname=xx
 SET bindir=..\bin
-SET srcdir=..\..\src\labo3
-SET dstdir=/home/%username%/labo3
+SET srcdir=..\..\src\pi
+SET dstdir=/home/%username%/pi
 
 %bindir%\plink.exe %hostname% -ssh -l %username% -pw %password% "rm -rf %dstdir%/*"
 %bindir%\pscp.exe -l %username% -pw %password% -r %srcdir%\* %hostname%:%dstdir%

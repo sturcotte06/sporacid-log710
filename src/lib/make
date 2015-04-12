@@ -1,0 +1,13 @@
+gcc -Wall -pthread -c logging/logging.c -o logging/logging.o
+gcc -Wall -pthread -c collections/linkedlist.c -o collections/linkedlist.o
+gcc -Wall -pthread -c collections/queue.c -o collections/queue.o
+gcc -Wall -pthread -c collections/synchronized/blocking_queue.c -o collections/synchronized/blocking_queue.o
+gcc -Wall -pthread -c tests/tests.c -o tests/tests.o
+gcc -Wall -pthread -c threading/commons.c -o threading/commons.o
+gcc -Wall -pthread -c threading/future.c -o threading/future.o
+gcc -Wall -pthread -c threading/threadpool.c -o threading/threadpool.o
+
+gcc -Wall -pthread collections/tests/linkedlist_tests.c logging/logging.o tests/tests.o collections/linkedlist.o -o collections/tests/linkedlist_tests
+gcc -Wall -pthread collections/tests/queue_tests.c logging/logging.o tests/tests.o collections/linkedlist.o collections/queue.o -o collections/tests/queue_tests
+gcc -Wall -pthread collections/synchronized/tests/blocking_queue_tests.c logging/logging.o tests/tests.o collections/linkedlist.o collections/queue.o collections/synchronized/blocking_queue.o threading/commons.o -o collections/synchronized/tests/blocking_queue_tests
+gcc -Wall -pthread threading/tests/threadpool_tests.c logging/logging.o tests/tests.o collections/linkedlist.o collections/queue.o collections/synchronized/blocking_queue.o threading/commons.o threading/future.o threading/threadpool.o -o threading/tests/threadpool_tests
